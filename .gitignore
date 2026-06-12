@@ -1,0 +1,101 @@
+# The .gitignore prevents sensitive environment-specific artifacts such as Terraform state, variable files, AWS environment snapshots, certificates, and logs from being committed. This keeps the repository portable, secure, and focused on Infrastructure-as-Code rather than generated runtime artifacts.
+# The repository is designed to store Infrastructure-as-Code, documentation, and reusable automation only. Environment-specific artifacts such as Terraform state, variable files, AWS environment snapshots, certificates, logs, and temporary files are excluded because they either contain sensitive information, can be regenerated, or would create unnecessary repository noise. This keeps the repository secure, portable, and reproducible across environments.
+
+#########################################
+# Terraform
+#########################################
+
+.terraform/
+#.terraform.lock.hcl
+
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+
+terraform.tfvars
+terraform.tfvars.json
+
+*.auto.tfvars
+*.auto.tfvars.json
+
+override.tf
+override.tf.json
+
+*_override.tf
+*_override.tf.json
+
+#########################################
+# Terraform Plans
+#########################################
+
+*.tfplan
+plan.out
+plan.tfplan
+
+#########################################
+# AWS Backups / Environment Snapshots
+#########################################
+
+terraform/outputs/
+
+#########################################
+# Sensitive Files
+#########################################
+
+*.pem
+*.key
+*.crt
+*.p12
+
+#########################################
+# VS Code
+#########################################
+
+.vscode/
+
+#########################################
+# macOS
+#########################################
+
+.DS_Store
+
+#########################################
+# Logs
+#########################################
+
+*.log
+
+#########################################
+# Python
+#########################################
+
+__pycache__/
+*.pyc
+
+#########################################
+# Temporary Files
+#########################################
+
+tmp/
+temp/
+
+#########################################
+# Microsoft Office Temporary Files
+#########################################
+
+~$*
+docs/
+
+#########################################
+# AWS Credentials / Exports
+#########################################
+
+*_accessKeys.csv
+*.csv
+
+#########################################
+# Apps
+#########################################
+
+apps/
