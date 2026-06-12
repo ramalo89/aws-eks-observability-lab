@@ -1,52 +1,69 @@
-# KubeInvaders on Amazon EKS - Observability Lab
+# AWS EKS Observability Lab
 
 ## Overview
 
-This repository contains the Infrastructure-as-Code (IaC) and supporting documentation used to build a cloud-native Kubernetes environment on Amazon EKS.
+This repository contains the Infrastructure-as-Code (IaC) used to build a repeatable Amazon Elastic Kubernetes Service (EKS) environment using Terraform.
 
-The purpose of this lab is to:
+The goal of this project is to establish a reusable Kubernetes foundation that can be used for learning, experimentation, observability, and cloud-native application deployments.
 
-* Learn and document Amazon EKS fundamentals
-* Build a repeatable Kubernetes platform using Terraform
-* Deploy and operate KubeInvaders
-* Implement OpenTelemetry-based observability
-* Integrate telemetry with Splunk Observability Cloud
-* Demonstrate platform engineering and cloud-native architecture practices
+The environment has been validated through multiple Terraform deployment and destruction cycles to ensure the infrastructure can be recreated consistently.
 
 ---
 
-## Architecture
+## Current Scope
 
-### AWS Components
+The current implementation focuses on provisioning and managing the AWS infrastructure required for a Kubernetes platform.
 
-* Amazon EKS Control Plane
-* Amazon EKS Managed Node Group
+### AWS Resources
+
 * Amazon VPC
-* Public Subnets across 3 Availability Zones
+* Public Subnets across three Availability Zones
 * Internet Gateway
-* Route Tables
+* Route Tables and Associations
 * IAM Roles and Policies
-* EKS Add-ons
+* Amazon EKS Cluster
+* Amazon EKS Managed Node Group
 
-### Kubernetes Components
+### EKS Add-ons
 
+* VPC CNI
 * CoreDNS
 * Kube Proxy
-* VPC CNI
 * Metrics Server
 * Kube State Metrics
 * EKS Pod Identity Agent
 * EKS Node Monitoring Agent
 
-### Planned Components
+---
 
-* KubeInvaders
-* OpenTelemetry Collector
-* Splunk Observability Cloud
-* Splunk Infrastructure Monitoring
-* Splunk APM
-* Splunk Log Observer
-* Splunk Kubernetes Navigator
+## Architecture
+
+```text
+AWS
+└── VPC
+    ├── Public Subnet (us-east-2a)
+    ├── Public Subnet (us-east-2b)
+    ├── Public Subnet (us-east-2c)
+    ├── Internet Gateway
+    └── Amazon EKS
+        ├── Control Plane
+        ├── Managed Node Group
+        └── EKS Add-ons
+```
+
+---
+
+## Environment Details
+
+| Component                 | Value             |
+| ------------------------- | ----------------- |
+| Cloud Provider            | AWS               |
+| Region                    | us-east-2         |
+| Kubernetes Version        | 1.35              |
+| Node Type                 | t3.large          |
+| Node Count                | 2                 |
+| Operating System          | Amazon Linux 2023 |
+| Infrastructure Management | Terraform         |
 
 ---
 
@@ -54,63 +71,43 @@ The purpose of this lab is to:
 
 ```text
 .
-├── docs/
-│   ├── diagrams/
-│   └── screenshots/
-│
-├── terraform/
-│   ├── addons.tf
-│   ├── eks.tf
-│   ├── iam.tf
-│   ├── locals.tf
-│   ├── nodegroup.tf
-│   ├── outputs.tf
-│   ├── providers.tf
-│   ├── terraform.tfvars
-│   ├── variables.tf
-│   └── vpc.tf
-│
-└── README.md
+├── README.md
+├── .gitignore
+└── terraform/
+    ├── providers.tf
+    ├── variables.tf
+    ├── locals.tf
+    ├── vpc.tf
+    ├── iam.tf
+    ├── eks.tf
+    ├── addons.tf
+    ├── nodegroup.tf
+    └── outputs.tf
 ```
-
----
-
-## Environment
-
-| Item               | Value                            |
-| ------------------ | -------------------------------- |
-| Cloud Provider     | AWS                              |
-| Region             | us-east-2                        |
-| Cluster Name       | ramalo-observability-lab-cluster |
-| Kubernetes Version | 1.35                             |
-| Node Type          | t3.large                         |
-| Node Count         | 2                                |
-| OS                 | Amazon Linux 2023                |
-| Terraform          | Managed Infrastructure           |
 
 ---
 
 ## Deployment
 
-### Initialize Terraform
+Initialize Terraform:
 
 ```bash
 terraform init
 ```
 
-### Validate Configuration
+Validate Configuration:
 
 ```bash
 terraform validate
 ```
 
-### Review Planned Changes
+Review Planned Changes:
 
 ```bash
 terraform plan
 ```
 
-### Deploy Environment
+Deploy Infrastructure:
 
 ```bash
 terraform apply
@@ -128,50 +125,33 @@ aws eks update-kubeconfig \
 
 ---
 
-## Verification Commands
+## Verification
 
-### Verify Nodes
+Verify worker nodes:
 
 ```bash
 kubectl get nodes -o wide
 ```
 
-### Verify System Pods
+Verify cluster add-ons:
 
 ```bash
 kubectl get pods -A
 ```
 
-### Verify Metrics Server
+Verify Metrics Server:
 
 ```bash
 kubectl top nodes
 ```
 
-### Verify EKS Add-ons
-
-```bash
-aws eks list-addons \
-  --cluster-name ramalo-observability-lab-cluster
-```
-
----
-
-## Terraform State Verification
-
-### List Managed Resources
-
-```bash
-terraform state list
-```
-
-### Verify No Drift
+Verify Terraform state:
 
 ```bash
 terraform plan
 ```
 
-Expected Result:
+Expected result:
 
 ```text
 No changes. Your infrastructure matches the configuration.
@@ -187,38 +167,16 @@ terraform destroy
 
 ---
 
-## Tagging Strategy
+## Future Enhancements
 
-All resources use a standardized tagging model:
+Planned future phases include:
 
-| Tag          | Purpose                 |
-| ------------ | ----------------------- |
-| Name         | Resource Name           |
-| Cluster      | Cluster Identifier      |
-| Owner        | Resource Owner          |
-| Environment  | Environment             |
-| Project      | Project Name            |
-| CostCenter   | Cost Tracking           |
-| ManagedBy    | Terraform               |
-| Platform     | AWS / EKS               |
-| ResourceType | Resource Classification |
-
----
-
-## Learning Objectives
-
-* Terraform Fundamentals
-* Infrastructure as Code
-* Amazon EKS
-* Kubernetes Administration
-* IAM Design
-* VPC Networking
-* Managed Node Groups
-* EKS Add-ons
-* OpenTelemetry
-* Splunk Observability Cloud
-* Platform Engineering
-* Cloud Native Architecture
+* KubeInvaders deployment
+* Splunk OpenTelemetry Collector
+* Splunk Observability Cloud integration
+* Application instrumentation
+* Kubernetes observability dashboards
+* CI/CD automation
 
 ---
 
@@ -226,4 +184,4 @@ All resources use a standardized tagging model:
 
 Ramalo Singh
 
-Observability | Platform Engineering | Kubernetes | OpenTelemetry | AWS
+AWS | Kubernetes | Terraform | Observability
