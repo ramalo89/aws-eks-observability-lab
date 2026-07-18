@@ -22,6 +22,37 @@ variable "kubernetes_version" {
   default     = "1.35"
 }
 
+variable "cluster_log_types" {
+  description = "EKS control-plane log types sent to CloudWatch Logs."
+  type        = list(string)
+
+  default = [
+    "api",
+    "audit",
+    "authenticator",
+    "controllerManager",
+    "scheduler"
+  ]
+
+  validation {
+    condition = alltrue([
+      for log_type in var.cluster_log_types :
+      contains(
+        [
+          "api",
+          "audit",
+          "authenticator",
+          "controllerManager",
+          "scheduler"
+        ],
+        log_type
+      )
+    ])
+
+    error_message = "Valid EKS log types are api, audit, authenticator, controllerManager, and scheduler."
+  }
+}
+
 variable "service_ipv4_cidr" {
   description = "Kubernetes service IPv4 CIDR block."
   type        = string

@@ -25,20 +25,20 @@ locals {
     subnet_key => merge(local.common_tags, {
       Name         = subnet.name
       Platform     = "aws"
-      ResourceType = "vpc"
+      ResourceType = "vpc-public-subnet"
     })
   }
 
   internet_gateway_tags = merge(local.common_tags, {
     Name         = "${var.project_name}-vpc-igw"
     Platform     = "aws"
-    ResourceType = "vpc"
+    ResourceType = "vpc-internet-gateway"
   })
 
   public_route_table_tags = merge(local.common_tags, {
     Name         = "${var.project_name}-vpc-rtb-public"
     Platform     = "aws"
-    ResourceType = "vpc"
+    ResourceType = "vpc-public-route-table"
   })
 
   nodegroup_role_tags = merge(local.common_tags, {

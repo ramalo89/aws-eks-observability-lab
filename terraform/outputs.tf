@@ -1,3 +1,8 @@
+output "aws_region" {
+  description = "AWS region containing the EKS cluster."
+  value       = var.aws_region
+}
+
 output "cluster_name" {
   description = "EKS cluster name."
   value       = aws_eks_cluster.lab.name
@@ -21,6 +26,11 @@ output "vpc_id" {
 output "public_subnet_ids" {
   description = "Public subnet IDs."
   value       = [for subnet in aws_subnet.public : subnet.id]
+}
+
+output "node_group_name" {
+  description = "EKS managed node group name."
+  value       = aws_eks_node_group.lab.node_group_name
 }
 
 output "eks_cluster_role_arn" {

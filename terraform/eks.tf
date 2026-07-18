@@ -24,11 +24,15 @@ resource "aws_eks_cluster" "lab" {
     ]
   }
 
-  enabled_cluster_log_types = []
+  enabled_cluster_log_types = var.cluster_log_types
 
   access_config {
     authentication_mode                         = "API_AND_CONFIG_MAP"
     bootstrap_cluster_creator_admin_permissions = true
+  }
+
+  upgrade_policy {
+    support_type = "STANDARD"
   }
 
   tags = local.eks_cluster_tags

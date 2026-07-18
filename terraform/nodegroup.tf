@@ -57,13 +57,13 @@ resource "aws_eks_node_group" "lab" {
 
   ami_type       = "AL2023_x86_64_STANDARD"
   capacity_type  = "ON_DEMAND"
-  instance_types = ["t3.large"]
-  disk_size      = 40
+  instance_types = ["m6i.xlarge"]
+  disk_size      = 80
 
   scaling_config {
     desired_size = 2
-    min_size     = 1
-    max_size     = 2
+    min_size     = 2
+    max_size     = 3
   }
 
   update_config {
@@ -74,7 +74,9 @@ resource "aws_eks_node_group" "lab" {
     enabled = false
   }
 
-  labels = {}
+  labels = {
+    workload = "observability-lab"
+  }
 
   tags = local.nodegroup_tags
 

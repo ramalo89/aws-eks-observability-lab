@@ -32,6 +32,11 @@ override.tf.json
 *.tfplan
 plan.out
 plan.tfplan
+terraform/tfplan
+terraform/tfplan.txt
+*.tfvars.backup
+terraform.rc
+.terraformrc
 
 #########################################
 # AWS Backups / Environment Snapshots
