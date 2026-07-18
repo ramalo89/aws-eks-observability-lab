@@ -1,0 +1,148 @@
+################################################################################
+# Target Allocator
+#
+# The Target Allocator can run as a deployment or a statefulset.
+# It discovers scraping configurations from ServiceMonitor and PodMonitor CRDs and
+# assigns them to collectors.
+# Related documentation: https://github.com/open-telemetry/opentelemetry-operator/tree/main/cmd/otel-allocator
+################################################################################
+
+# Valid values are "deployment" and "statefulset".
+mode: "deployment"
+
+# nameOverride replaces the name of the chart, when this is used to construct
+# Kubernetes object names.
+nameOverride: ""
+# fullnameOverride completely replaces the generated name.
+fullnameOverride: ""
+# Specify which namespace should be used to deploy the resources into.
+namespaceOverride: ""
+
+# Number of replicas for the target allocator
+replicaCount: 1
+
+configMap:
+  # Specifies whether a configMap should be created (true by default)
+  create: true
+  # Specifies an existing ConfigMap to be mounted to the pod
+  # The ConfigMap MUST include the configuration via a key named 'targetallocator.yaml'. If not you can additionaly set existingKey to the desired one in the configmap
+  existingName: ""
+  # If the key in your provided configmap does not match 'targetallocator.yaml' you can set here the custom one
+  # existingKey: demo-key
+  # You can also set create: false and dont specify a existing one, but than you have to provide custom config volume mount via the mounts below and mount it to /conf/targetallocator.yaml, otherwhise the pod wont start
+
+targetAllocator:
+  image:
+    repository: ghcr.io/open-telemetry/opentelemetry-operator/target-allocator
+    # The tag of the Target Allocator image, default value is the chart appVersion
+    tag: ""
+  # Secrets to attach to the respective serviceaccount to pull docker images
+  imagePullSecrets: []
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the fullname template
+    name: ""
+
+    # Service account annotations
+    annotations: {}
+  config:
+    allocation_strategy: consistent-hashing
+    # Example of selector to choose which collectors will be allocated targets:
+    # collector_namespace: default
+    # collector_selector:
+    #  matchlabels:
+    #    app.kubernetes.io/component: agent-collector
+    prometheus_cr:
+      enabled: true
+      scrapeInterval: 30s
+      # An empty value means any service monitor will be accepted.
+      service_monitor_selector: {}
+      # An empty value means any pod monitor will be accepted.
+      pod_monitor_selector: {}
+
+    filter_strategy: relabel-config
+    config:
+      scrape_configs: []
+
+  resources: {}
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 64Mi
+
+  # liveness probe configuration
+  # Ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+  livenessProbe:
+    httpGet:
+      path: /livez
+      port: 8080
+    initialDelaySeconds: 15
+    periodSeconds: 20
+
+  # readiness probe configuration
+  # Ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+  readinessProbe:
+    httpGet:
+      path: /readyz
+      port: 8080
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  # Pod annotations to add to the target allocator pod
+  podAnnotations: {}
+
+  # Pod labels to add to the target allocator pod
+  podLabels: {}
+
+  # Extra environment variables to set in the target allocator container.
+  # Ref: https://kubernetes.io/docs/tasks/inject-data-application/define-environment-variable-container/
+  extraEnvs: []
+  # extraEnvs:
+  #   - name: MY_VAR
+  #     value: "my-value"
+  #   - name: MY_SECRET_VAR
+  #     valueFrom:
+  #       secretKeyRef:
+  #         name: my-secret
+  #         key: my-key
+
+affinity: {}
+tolerations: []
+nodeSelector: {}
+topologySpreadConstraints: []
+
+# statefulset specific configuration, only used when mode is "statefulset"
+statefulset:
+  # volumeClaimTemplates for the statefulset
+  volumeClaimTemplates: []
+  #  - metadata:
+  #      name: data
+  #    spec:
+  #      accessModes: [ "ReadWriteOnce" ]
+  #      resources:
+  #        requests:
+  #          storage: 1Gi
+  podManagementPolicy: "Parallel"
+  # Controls if and how PVCs created by the StatefulSet are deleted.
+  # Available in Kubernetes 1.23+.
+  persistentVolumeClaimRetentionPolicy:
+    enabled: false
+    whenDeleted: Retain
+    whenScaled: Retain
+
+extraVolumes: []
+  # - name: custom-ta-configmap
+  #   configMap:
+  #     name: demo-configmap
+  #     items:
+  #       - key: demo-key
+  #         path: targetallocator.yaml
+  #     defaultMode: 420
+extraVolumeMounts: []
+  # - name: custom-ta-configmap
+  #   mountPath: /conf
+## This will deploy arbitrary manifests as part of the helm relase
+extraObjects: []

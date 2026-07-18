@@ -1,0 +1,2158 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "type": "object",
+  "title": "Values",
+  "additionalProperties": false,
+  "properties": {
+    "enabled": {
+      "description": "Flag to enable splunk-otel-collector used as a subchart in other charts.",
+      "type": "boolean"
+    },
+    "global": {
+      "type": "object"
+    },
+    "k8sVersion": {
+      "description": "Required for EKS Add-on compatibility. Not used by the chart.",
+      "type": "string"
+    },
+    "nameOverride": {
+      "description": "Override name of the chart used in Kubernetes object names.",
+      "type": "string"
+    },
+    "namespaceOverride": {
+      "description": "Override the deployment namespace of chart resources; default namespace is .Release.Namespace",
+      "type": "string"
+    },
+    "fullnameOverride": {
+      "description": "Override fully qualified app name.",
+      "type": "string"
+    },
+    "clusterName": {
+      "description": "Cluster name that will be used as metadata attributes for all telemetry data",
+      "type": "string"
+    },
+    "splunkPlatform": {
+      "description": "Splunk Cloud / Splunk Enterprise configuration",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "endpoint": {
+          "description": "Splunk Platform Endpoint",
+          "example": "http://localhost:8088/services/collector",
+          "type": "string"
+        },
+        "token": {
+          "description": "Splunk Platform HEC Token",
+          "type": "string"
+        },
+        "index": {
+          "description": "Name of Splunk index targeted.",
+          "type": "string"
+        },
+        "metricsIndex": {
+          "type": "string"
+        },
+        "tracesIndex": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "sourcetype": {
+          "type": "string"
+        },
+        "metricsSourcetype": {
+          "type": "string"
+        },
+        "maxConnections": {
+          "type": "integer"
+        },
+        "disableCompression": {
+          "type": "boolean"
+        },
+        "timeout": {
+          "type": "string"
+        },
+        "idleConnTimeout": {
+          "type": "string"
+        },
+        "insecureSkipVerify": {
+          "type": "boolean"
+        },
+        "clientCert": {
+          "type": "string"
+        },
+        "clientKey": {
+          "type": "string"
+        },
+        "caFile": {
+          "type": "string"
+        },
+        "logsEnabled": {
+          "description": "Send Logs to Splunk Platform",
+          "type": "boolean"
+        },
+        "metricsEnabled": {
+          "description": "Send Metrics to Splunk Platform",
+          "type": "boolean"
+        },
+        "tracesEnabled": {
+          "description": "Send Traces to Splunk Platform",
+          "type": "boolean"
+        },
+        "fieldNameConvention": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "renameFieldsSck": {
+              "type": "boolean"
+            },
+            "keepOtelConvention": {
+              "type": "boolean"
+            }
+          }
+        },
+        "retryOnFailure": {
+          "description": "Retry configurations",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "initialInterval": {
+              "type": "string"
+            },
+            "maxInterval": {
+              "type": "string"
+            },
+            "maxElapsedTime": {
+              "type": "string"
+            }
+          }
+        },
+        "sendingQueue": {
+          "description": "Batching configurations for logs/traces/metrics",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "numConsumers": {
+              "type": "integer"
+            },
+            "queueSize": {
+              "type": "integer"
+            },
+            "persistentQueue": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "storagePath": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "fsyncEnabled": {
+          "type": "boolean"
+        },
+        "otlpIngest": {
+          "description": "Send logs via OTLP to Splunk Connect for OTLP instead of HEC",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "endpoint": {
+              "type": "string"
+            },
+            "protocol": {
+              "type": "string",
+              "enum": [
+                "grpc",
+                "http"
+              ]
+            },
+            "insecure": {
+              "type": "boolean"
+            },
+            "insecureSkipVerify": {
+              "type": "boolean"
+            },
+            "clientCert": {
+              "type": "string"
+            },
+            "clientKey": {
+              "type": "string"
+            },
+            "caFile": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "anyOf": [
+        {
+          "properties": {
+            "logsEnabled": {
+              "const": true
+            }
+          }
+        },
+        {
+          "properties": {
+            "metricsEnabled": {
+              "const": true
+            }
+          }
+        }
+      ]
+    },
+    "splunkObservability": {
+      "description": "Splunk Observability configuration",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "realm": {
+          "description": "Splunk Observability Realm",
+          "example": "us0",
+          "type": "string"
+        },
+        "accessToken": {
+          "description": "Splunk Observability Access Token",
+          "type": "string"
+        },
+        "ingestUrl": {
+          "type": "string"
+        },
+        "apiUrl": {
+          "type": "string"
+        },
+        "metricsEnabled": {
+          "description": "Send Metrics to Splunk Observability",
+          "type": "boolean"
+        },
+        "tracesEnabled": {
+          "description": "Send Traces to Splunk Observability",
+          "type": "boolean"
+        },
+        "profilingEnabled": {
+          "description": "Whether profiling data is enabled for Splunk Observability",
+          "type": "boolean"
+        },
+        "secureAppEnabled": {
+          "description": "Whether Secure Application features are enabled for Splunk Observability",
+          "type": "boolean"
+        },
+        "infrastructureMonitoringEventsEnabled": {
+          "description": "Send Kubernetes events to Splunk Observability Infrastructure Monitoring",
+          "type": "boolean"
+        }
+      },
+      "anyOf": [
+        {
+          "properties": {
+            "metricsEnabled": {
+              "const": true
+            }
+          }
+        },
+        {
+          "properties": {
+            "tracesEnabled": {
+              "const": true
+            }
+          }
+        },
+        {
+          "properties": {
+            "profilingEnabled": {
+              "const": true
+            }
+          }
+        },
+        {
+          "properties": {
+            "secureAppEnabled": {
+              "const": true
+            }
+          }
+        }
+      ]
+    },
+    "logsEngine": {
+      "description": "Logs collection engine (deprecated, only otel is supported)",
+      "type": "string",
+      "enum": [
+        "otel"
+      ]
+    },
+    "cloudProvider": {
+      "description": "Cloud provider where the collector is running",
+      "type": "string",
+      "enum": [
+        "aws",
+        "gcp",
+        "azure",
+        " ",
+        ""
+      ]
+    },
+    "distribution": {
+      "description": "Kubernetes distribution where the collector is running",
+      "type": "string",
+      "$comment": "Please ensure clusterName is set to the proper required/optional value when modifying this list",
+      "enum": [
+        "eks",
+        "eks/auto-mode",
+        "eks/fargate",
+        "gke",
+        "gke/autopilot",
+        "aks",
+        "openshift",
+        " ",
+        ""
+      ]
+    },
+    "environment": {
+      "description": "Parameter that will be added to all the telemetry data (traces/logs/metrics) as an attribute.",
+      "type": "string"
+    },
+    "autodetect": {
+      "description": "Automatic detection of additional metric sources.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "controlPlane": {
+          "type": "boolean",
+          "deprecated": true
+        },
+        "prometheus": {
+          "type": "boolean"
+        },
+        "istio": {
+          "type": "boolean"
+        }
+      }
+    },
+    "extraAttributes": {
+      "description": "Additional metadata that will be added to all the telemetry as extra attributes.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fromLabels": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "fromAnnotations": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "custom": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "value"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "agent": {
+      "description": "Splunk OpenTelemetry Collector agent configuration.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "controlPlaneEnabled": {
+          "type": "boolean",
+          "deprecated": true
+        },
+        "controlPlaneMetrics": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "scrapeInterval": {
+              "type": "string",
+              "pattern": "^[0-9]+(ms|s|m|h)$",
+              "description": "Scrape interval for control plane Prometheus receivers (Prometheus duration, e.g. 10s, 1m). Also applies to the EKS apiserver receiver in the cluster receiver."
+            },
+            "apiserver": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "controllerManager": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "coredns": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "etcd": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "port": {
+                  "type": [
+                    "string",
+                    "integer"
+                  ]
+                },
+                "secret": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "create": {
+                      "type": "boolean"
+                    },
+                    "clientCert": {
+                      "type": "string"
+                    },
+                    "clientKey": {
+                      "type": "string"
+                    },
+                    "caFile": {
+                      "type": "string"
+                    },
+                    "annotations": {
+                      "type": "object"
+                    }
+                  }
+                },
+                "skipVerify": {
+                  "type": "boolean"
+                }
+              },
+              "allOf": [
+                {
+                  "if": {
+                    "$comment": "if secret.create is true, require clientCert and clientKey",
+                    "properties": {
+                      "secret": {
+                        "properties": {
+                          "create": {
+                            "const": true
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "then": {
+                    "properties": {
+                      "secret": {
+                        "properties": {
+                          "clientCert": {
+                            "minLength": 1
+                          },
+                          "clientKey": {
+                            "minLength": 1
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "proxy": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "scheduler": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        },
+        "ports": {
+          "type": "object",
+          "patternProperties": {
+            ".*": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "containerPort": {
+                  "type": "integer"
+                },
+                "hostPort": {
+                  "type": "integer"
+                },
+                "protocol": {
+                  "type": "string"
+                },
+                "enabled_for": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "traces",
+                      "metrics",
+                      "logs",
+                      "profiling"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "resources": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "limits": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "cpu": {
+                  "type": [
+                    "string",
+                    "integer"
+                  ]
+                },
+                "memory": {
+                  "type": "string"
+                }
+              }
+            },
+            "requests": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "cpu": {
+                  "type": [
+                    "string",
+                    "integer"
+                  ]
+                },
+                "memory": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "securityContext": {
+          "type": "object"
+        },
+        "updateStrategy": {
+          "type": "string",
+          "enum": [
+            "OnDelete",
+            "RollingUpdate"
+          ]
+        },
+        "maxUnavailable": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "service": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "ClusterIP",
+                "NodePort",
+                "LoadBalancer",
+                "ExternalName"
+              ],
+              "description": "Service type for the agent service. Defaults to ClusterIP."
+            },
+            "annotations": {
+              "type": "object",
+              "description": "Annotations for the agent service."
+            }
+          }
+        },
+        "hostNetwork": {
+          "description": "Host network allows container to use networking stack of the host machine",
+          "type": "boolean"
+        },
+        "skipInitContainers": {
+          "description": "Skip init containers",
+          "type": "boolean"
+        },
+        "annotations": {
+          "type": "object"
+        },
+        "discovery": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "properties": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "extensions": {
+                  "type": "object",
+                  "additionalProperties": true
+                },
+                "receivers": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        },
+        "podAnnotations": {
+          "type": "object"
+        },
+        "podLabels": {
+          "type": "object"
+        },
+        "extraEnvs": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "extraVolumes": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "extraVolumeMounts": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "featureGates": {
+          "type": "string"
+        },
+        "config": {
+          "type": "object"
+        }
+      }
+    },
+    "clusterReceiver": {
+      "description": "Splunk OpenTelemetry Collector cluster receiver configuration.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "resources": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "limits": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "cpu": {
+                  "type": [
+                    "string",
+                    "integer"
+                  ]
+                },
+                "memory": {
+                  "type": "string"
+                }
+              }
+            },
+            "requests": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "cpu": {
+                  "type": [
+                    "string",
+                    "integer"
+                  ]
+                },
+                "memory": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "nodeSelector": {
+          "type": "object"
+        },
+        "tolerations": {
+          "type": "array"
+        },
+        "affinity": {
+          "type": "object"
+        },
+        "securityContext": {
+          "description": "[DEPRECATED] Use podSecurityContext instead.",
+          "type": "object"
+        },
+        "podSecurityContext": {
+          "type": "object"
+        },
+        "containerSecurityContext": {
+          "type": "object"
+        },
+        "terminationGracePeriodSeconds": {
+          "type": "integer"
+        },
+        "priorityClassName": {
+          "type": "string"
+        },
+        "annotations": {
+          "type": "object"
+        },
+        "podAnnotations": {
+          "type": "object"
+        },
+        "k8sEventsEnabled": {
+          "description": "[DEPRECATED] Use eventsEnabled instead.",
+          "type": "boolean",
+          "deprecated": true
+        },
+        "eventsEnabled": {
+          "description": "[DEPRECATED] Use k8sObjects instead.",
+          "type": "boolean",
+          "deprecated": true
+        },
+        "k8sObjects": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "hostNetwork": {
+          "description": "Host network allows container to use networking stack of the host machine",
+          "type": [
+            "null",
+            "boolean"
+          ],
+          "optional": true
+        },
+        "podLabels": {
+          "type": "object"
+        },
+        "extraEnvs": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "extraVolumes": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "extraVolumeMounts": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "featureGates": {
+          "type": "string"
+        },
+        "config": {
+          "type": "object"
+        }
+      }
+    },
+    "logsCollection": {
+      "description": "Native OpenTelemetry logs collection configuration.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "containers": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "containerRuntime": {
+              "type": "string",
+              "enum": [
+                "",
+                "docker",
+                "containerd",
+                "crio"
+              ]
+            },
+            "excludePaths": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "excludeAgentLogs": {
+              "type": "boolean"
+            },
+            "extraOperators": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            },
+            "useSplunkIncludeAnnotation": {
+              "type": "boolean"
+            },
+            "multilineConfigs": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            },
+            "maxRecombineLogSize": {
+              "type": "integer"
+            }
+          }
+        },
+        "journald": {
+          "description": "Configuration to collect journald logs",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "useHostJournalctl": {
+              "type": "boolean"
+            },
+            "root_path": {
+              "type": "string"
+            },
+            "journalctl_path": {
+              "type": "string"
+            },
+            "mnts": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "path": {
+                    "type": [
+                      "string"
+                    ]
+                  }
+                }
+              }
+            },
+            "directory": {
+              "type": "string"
+            },
+            "index": {
+              "type": "string"
+            },
+            "units": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "priority": {
+                    "type": [
+                      "string",
+                      "integer"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "checkpointPath": {
+          "type": "string"
+        },
+        "extraFileLogs": {
+          "type": "object"
+        }
+      }
+    },
+    "image": {
+      "description": "Docker image configuration.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "imagePullSecrets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "otelcol": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "repository": {
+              "type": "string"
+            },
+            "tag": {
+              "type": "string"
+            },
+            "pullPolicy": {
+              "type": "string",
+              "enum": [
+                "IfNotPresent",
+                "Always",
+                "Never"
+              ]
+            }
+          }
+        },
+        "initPatchLogDirs": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "repository": {
+              "type": "string"
+            },
+            "tag": {
+              "type": "string"
+            },
+            "pullPolicy": {
+              "type": "string",
+              "enum": [
+                "IfNotPresent",
+                "Always",
+                "Never"
+              ]
+            }
+          }
+        },
+        "validateSecret": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "repository": {
+              "type": "string"
+            },
+            "tag": {
+              "type": "string"
+            },
+            "pullPolicy": {
+              "type": "string",
+              "enum": [
+                "IfNotPresent",
+                "Always",
+                "Never"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "podDisruptionBudget": {
+      "description": "Limits number of pods may be unavailable due to voluntary disruptions.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "minAvailable": {
+          "type": [
+            "integer",
+            "string"
+          ]
+        },
+        "maxUnavailable": {
+          "type": [
+            "integer",
+            "string"
+          ]
+        }
+      }
+    },
+    "serviceAccount": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "create": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "annotations": {
+          "type": "object"
+        }
+      }
+    },
+    "rbac": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "create": {
+          "type": "boolean"
+        },
+        "customRules": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "secret": {
+      "description": "Kubernetes secret resource configuration",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "create": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "validateSecret": {
+          "type": "boolean"
+        },
+        "annotations": {
+          "type": "object"
+        }
+      }
+    },
+    "tolerations": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "nodeSelector": {
+      "type": "object"
+    },
+    "terminationGracePeriodSeconds": {
+      "type": "integer"
+    },
+    "affinity": {
+      "description": "Defines node affinity to restrict deployment of the o11y collector daemonset.",
+      "type": "object"
+    },
+    "priorityClassName": {
+      "type": "string"
+    },
+    "readinessProbe": {
+      "type": "object",
+      "properties": {
+        "initialDelaySeconds": {
+          "type": "integer"
+        },
+        "timeoutSeconds": {
+          "type": "integer"
+        },
+        "periodSeconds": {
+          "type": "integer"
+        },
+        "failureThreshold": {
+          "type": "integer"
+        },
+        "successThreshold": {
+          "type": "integer"
+        }
+      },
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "httpGet"
+            ]
+          },
+          {
+            "required": [
+              "exec"
+            ]
+          },
+          {
+            "required": [
+              "tcpSocket"
+            ]
+          },
+          {
+            "required": [
+              "grpc"
+            ]
+          }
+        ]
+      }
+    },
+    "livenessProbe": {
+      "type": "object",
+      "properties": {
+        "initialDelaySeconds": {
+          "type": "integer"
+        },
+        "timeoutSeconds": {
+          "type": "integer"
+        },
+        "periodSeconds": {
+          "type": "integer"
+        },
+        "failureThreshold": {
+          "type": "integer"
+        },
+        "successThreshold": {
+          "type": "integer"
+        },
+        "terminationGracePeriodSeconds": {
+          "type": "integer"
+        }
+      },
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "httpGet"
+            ]
+          },
+          {
+            "required": [
+              "exec"
+            ]
+          },
+          {
+            "required": [
+              "tcpSocket"
+            ]
+          },
+          {
+            "required": [
+              "grpc"
+            ]
+          }
+        ]
+      }
+    },
+    "isWindows": {
+      "description": "Apply for k8s cluster with windows worker node.",
+      "type": "boolean"
+    },
+    "securityContextConstraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "create": {
+          "type": "boolean"
+        }
+      }
+    },
+    "securityContextConstraintsOverwrite": {
+      "description": "Openshift SecurityContextConstraints can be overridden in this field.",
+      "type": "object"
+    },
+    "gateway": {
+      "description": "Splunk OpenTelemetry Collector gateway workload configuration.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "deployment",
+            "statefulset"
+          ]
+        },
+        "replicaCount": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "ports": {
+          "type": "object",
+          "patternProperties": {
+            ".*": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "containerPort": {
+                  "type": "integer"
+                },
+                "hostPort": {
+                  "type": "integer"
+                },
+                "protocol": {
+                  "type": "string"
+                },
+                "enabled_for": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "traces",
+                      "metrics",
+                      "logs",
+                      "profiling"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "resources": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "limits": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "cpu": {
+                  "type": [
+                    "string",
+                    "integer"
+                  ]
+                },
+                "memory": {
+                  "type": "string"
+                }
+              }
+            },
+            "requests": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "cpu": {
+                  "type": [
+                    "string",
+                    "integer"
+                  ]
+                },
+                "memory": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "service": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "ClusterIP",
+                "NodePort",
+                "LoadBalancer",
+                "ExternalName"
+              ],
+              "description": "Service type for the gateway service. Defaults to ClusterIP."
+            },
+            "annotations": {
+              "type": "object",
+              "description": "Annotations for the gateway service."
+            },
+            "trafficDistribution": {
+              "type": "string",
+              "enum": [
+                "",
+                "PreferClose",
+                "PreferSameZone",
+                "PreferSameNode"
+              ]
+            }
+          }
+        },
+        "headlessService": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "annotations": {
+              "type": "object"
+            }
+          }
+        },
+        "nodeSelector": {
+          "type": "object"
+        },
+        "tolerations": {
+          "type": "array"
+        },
+        "affinity": {
+          "type": "object"
+        },
+        "topologySpreadConstraints": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "securityContext": {
+          "description": "[DEPRECATED] Use podSecurityContext instead.",
+          "type": "object"
+        },
+        "podSecurityContext": {
+          "type": "object"
+        },
+        "containerSecurityContext": {
+          "type": "object"
+        },
+        "terminationGracePeriodSeconds": {
+          "type": "integer"
+        },
+        "priorityClassName": {
+          "type": "string"
+        },
+        "annotations": {
+          "type": "object"
+        },
+        "podAnnotations": {
+          "type": "object"
+        },
+        "podLabels": {
+          "type": "object"
+        },
+        "extraEnvs": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "extraVolumes": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "extraVolumeMounts": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "statefulsetSpec": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "featureGates": {
+          "type": "string"
+        },
+        "config": {
+          "type": "object"
+        }
+      }
+    },
+    "service": {
+      "description": "[DEPRECATED] OpenTelemetry collector service configuration. Please use agent.service and gateway.service instead.",
+      "type": "object",
+      "deprecated": true,
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "ClusterIP",
+            "NodePort",
+            "LoadBalancer",
+            "ExternalName"
+          ]
+        },
+        "trafficDistribution": {
+          "type": "string",
+          "enum": [
+            "",
+            "PreferClose",
+            "PreferSameZone",
+            "PreferSameNode"
+          ]
+        },
+        "annotations": {
+          "type": "object"
+        }
+      }
+    },
+    "operatorcrds": {
+      "description": "Deploys Operator related CRDs from https://github.com/open-telemetry/opentelemetry-operator/tree/main/config/crd via a Helm subchart and using the chart crds/ directory.",
+      "type": "object",
+      "properties": {
+        "install": {
+          "type": "boolean"
+        }
+      }
+    },
+    "operator-crds": {
+      "description": "Configuration for operator-crds (legacy). Prefer using 'operatorcrds' for new installations. Deploys Operator related CRDs from https://github.com/open-telemetry/opentelemetry-operator/tree/main/config/crd via a Helm subchart and using the chart crds/ directory.",
+      "type": "object",
+      "properties": {
+        "install": {
+          "type": "boolean"
+        }
+      }
+    },
+    "operator": {
+      "description": "OpenTelemetry Operator configuration. A subchart that is used to install the operator, see https://github.com/open-telemetry/opentelemetry-helm-charts/blob/main/charts/opentelemetry-operator/values.schema.json for more info.",
+      "type": "object",
+      "additionalProperties": true
+    },
+    "opentelemetry-operator": {
+      "description": "OpenTelemetry Operator configuration (legacy). Prefer using 'operator' for new installations. This field is provided for backward compatibility with older Helm versions or custom distributions. A subchart that is used to install the operator, see https://github.com/open-telemetry/opentelemetry-helm-charts/blob/main/charts/opentelemetry-operator/values.schema.json for more info.",
+      "type": "object",
+      "additionalProperties": true
+    },
+    "instrumentation": {
+      "type": "object",
+      "description": "Instrumentation CR configuration for OpenTelemetry Operator auto-instrumentation.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether to deploy the Instrumentation CR.",
+          "default": true
+        },
+        "installationJob": {
+          "type": "object",
+          "description": "Deploy the Instrumentation CR via a Kubernetes Job that waits for webhook readiness.",
+          "additionalProperties": true
+        },
+        "spec": {
+          "type": "object",
+          "description": "Instrumentation CR spec passed to the OpenTelemetry Operator.",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "certmanager": {
+      "description": "[Deprecated] cert-manager adds certificates and certificate issuers as resource types in Kubernetes clusters, and simplifies the process of obtaining, renewing and using those certificates.",
+      "type": "object",
+      "deprecated": true,
+      "additionalProperties": true
+    },
+    "cert-manager": {
+      "description": "Configuration for cert-manager (legacy). Prefer using 'certmanager' for new installations. This field is included to support backward compatibility with older Helm versions or custom distributions. cert-manager adds certificates and certificate issuers as resource types in Kubernetes clusters, and simplifies the process of obtaining, renewing and using those certificates.",
+      "type": "object",
+      "additionalProperties": true
+    },
+    "targetallocator": {
+      "description": "Target Allocator configuration.",
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "obi": {
+      "description": "OpenTelemetry eBPF Instrumentation configuration. A subchart that is used to install the eBPF instrumentation, see https://github.com/open-telemetry/opentelemetry-helm-charts/blob/main/charts/opentelemetry-ebpf-instrumentation/values.schema.json for more info.",
+      "type": "object",
+      "additionalProperties": true
+    },
+    "featureGates": {
+      "description": "Helm Chart Feature Gates.",
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "allOf": [
+    {
+      "anyOf": [
+        {
+          "properties": {
+            "splunkPlatform": {
+              "type": "object",
+              "properties": {
+                "endpoint": {
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "splunkObservability": {
+              "type": "object",
+              "properties": {
+                "realm": {
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "splunkPlatform": {
+              "type": "object",
+              "required": [
+                "logsEnabled",
+                "otlpIngest"
+              ],
+              "properties": {
+                "logsEnabled": {
+                  "const": true
+                },
+                "otlpIngest": {
+                  "type": "object",
+                  "required": [
+                    "enabled"
+                  ],
+                  "properties": {
+                    "enabled": {
+                      "const": true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "$comment": "clusterName is optional for distributions that auto-detect it (gke, eks, eks/auto-mode, openshift). eks/fargate cannot auto-detect so clusterName is required.",
+      "if": {
+        "allOf": [
+          {
+            "properties": {
+              "distribution": {
+                "pattern": "^(gke|eks|openshift).*"
+              }
+            },
+            "required": [
+              "distribution"
+            ]
+          },
+          {
+            "not": {
+              "properties": {
+                "distribution": {
+                  "const": "eks/fargate"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "then": {
+        "properties": {
+          "clusterName": {
+            "minLength": 0
+          }
+        }
+      },
+      "else": {
+        "$comment": "The clusterName is required if the distribution doesn't start with eks, gke, or match openshift.",
+        "properties": {
+          "clusterName": {
+            "minLength": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "$comment": "if k8s secret resource created by the chart (default behavior)",
+        "properties": {
+          "secret": {
+            "properties": {
+              "create": {
+                "const": true
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "$comment": "then require tokens to be provided for every enabled destination",
+        "properties": {
+          "splunkObservability": {
+            "if": {
+              "properties": {
+                "realm": {
+                  "minLength": 1
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "accessToken": {
+                  "minLength": 1
+                }
+              }
+            }
+          },
+          "splunkPlatform": {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "endpoint": {
+                      "minLength": 1
+                    }
+                  }
+                },
+                {
+                  "anyOf": [
+                    {
+                      "properties": {
+                        "metricsEnabled": {
+                          "const": true
+                        }
+                      }
+                    },
+                    {
+                      "properties": {
+                        "tracesEnabled": {
+                          "const": true
+                        }
+                      }
+                    },
+                    {
+                      "allOf": [
+                        {
+                          "properties": {
+                            "logsEnabled": {
+                              "const": true
+                            }
+                          }
+                        },
+                        {
+                          "not": {
+                            "properties": {
+                              "otlpIngest": {
+                                "properties": {
+                                  "enabled": {
+                                    "const": true
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "properties": {
+                "token": {
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "$comment": "if OTLP ingest for platform logs is enabled, require platform logs",
+        "properties": {
+          "splunkPlatform": {
+            "type": "object",
+            "required": [
+              "otlpIngest"
+            ],
+            "properties": {
+              "otlpIngest": {
+                "type": "object",
+                "required": [
+                  "enabled"
+                ],
+                "properties": {
+                  "enabled": {
+                    "const": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "splunkPlatform": {
+            "required": [
+              "logsEnabled"
+            ],
+            "properties": {
+              "logsEnabled": {
+                "const": true
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "$comment": "if OTLP ingest for platform logs is enabled, require OTLP endpoint",
+        "properties": {
+          "splunkPlatform": {
+            "type": "object",
+            "required": [
+              "otlpIngest"
+            ],
+            "properties": {
+              "logsEnabled": {
+                "const": true
+              },
+              "otlpIngest": {
+                "type": "object",
+                "required": [
+                  "enabled"
+                ],
+                "properties": {
+                  "enabled": {
+                    "const": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "splunkPlatform": {
+            "required": [
+              "index",
+              "otlpIngest"
+            ],
+            "properties": {
+              "index": {
+                "minLength": 1
+              },
+              "otlpIngest": {
+                "required": [
+                  "endpoint"
+                ],
+                "properties": {
+                  "endpoint": {
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "$comment": "OTLP insecure disables TLS, so insecureSkipVerify cannot also be true",
+        "properties": {
+          "splunkPlatform": {
+            "type": "object",
+            "required": [
+              "otlpIngest"
+            ],
+            "properties": {
+              "otlpIngest": {
+                "type": "object",
+                "required": [
+                  "insecure"
+                ],
+                "properties": {
+                  "insecure": {
+                    "const": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "splunkPlatform": {
+            "properties": {
+              "otlpIngest": {
+                "properties": {
+                  "insecureSkipVerify": {
+                    "const": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "$comment": "OTLP gRPC exporter endpoints must be host:port without a URL scheme",
+        "properties": {
+          "splunkPlatform": {
+            "type": "object",
+            "required": [
+              "otlpIngest"
+            ],
+            "properties": {
+              "otlpIngest": {
+                "type": "object",
+                "required": [
+                  "enabled",
+                  "protocol"
+                ],
+                "properties": {
+                  "enabled": {
+                    "const": true
+                  },
+                  "protocol": {
+                    "const": "grpc"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "splunkPlatform": {
+            "properties": {
+              "otlpIngest": {
+                "properties": {
+                  "endpoint": {
+                    "pattern": "^[^\\s/]+:[0-9]+$"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "$comment": "OTLP HTTP exporter endpoints must include an http or https scheme",
+        "properties": {
+          "splunkPlatform": {
+            "type": "object",
+            "required": [
+              "otlpIngest"
+            ],
+            "properties": {
+              "otlpIngest": {
+                "type": "object",
+                "required": [
+                  "enabled",
+                  "protocol"
+                ],
+                "properties": {
+                  "enabled": {
+                    "const": true
+                  },
+                  "protocol": {
+                    "const": "http"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "splunkPlatform": {
+            "properties": {
+              "otlpIngest": {
+                "properties": {
+                  "endpoint": {
+                    "pattern": "^https?://[^\\s/]+(/.*)?$"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "$comment": "if OTLP client certificate is provided, require its private key",
+        "properties": {
+          "splunkPlatform": {
+            "type": "object",
+            "required": [
+              "otlpIngest"
+            ],
+            "properties": {
+              "otlpIngest": {
+                "type": "object",
+                "required": [
+                  "clientCert"
+                ],
+                "properties": {
+                  "clientCert": {
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "splunkPlatform": {
+            "properties": {
+              "otlpIngest": {
+                "required": [
+                  "clientKey"
+                ],
+                "properties": {
+                  "clientKey": {
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "$comment": "if OTLP client private key is provided, require its certificate",
+        "properties": {
+          "splunkPlatform": {
+            "type": "object",
+            "required": [
+              "otlpIngest"
+            ],
+            "properties": {
+              "otlpIngest": {
+                "type": "object",
+                "required": [
+                  "clientKey"
+                ],
+                "properties": {
+                  "clientKey": {
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "splunkPlatform": {
+            "properties": {
+              "otlpIngest": {
+                "required": [
+                  "clientCert"
+                ],
+                "properties": {
+                  "clientCert": {
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "$comment": "if splunkPlatform.metricsEnabled is true",
+        "required": [
+          "splunkPlatform"
+        ],
+        "properties": {
+          "splunkPlatform": {
+            "required": [
+              "metricsEnabled"
+            ],
+            "properties": {
+              "metricsEnabled": {
+                "const": true
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "$comment": "then splunkPlatform.endpoint and splunkPlatform.metricsIndex must be provided",
+        "properties": {
+          "splunkPlatform": {
+            "required": [
+              "endpoint",
+              "metricsIndex"
+            ],
+            "properties": {
+              "endpoint": {
+                "minLength": 1
+              },
+              "metricsIndex": {
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "$comment": "if splunkPlatform.tracesEnabled is true",
+        "required": [
+          "splunkPlatform"
+        ],
+        "properties": {
+          "splunkPlatform": {
+            "required": [
+              "tracesEnabled"
+            ],
+            "properties": {
+              "tracesEnabled": {
+                "const": true
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "$comment": "then splunkPlatform.endpoint must be provided",
+        "properties": {
+          "splunkPlatform": {
+            "required": [
+              "endpoint"
+            ],
+            "properties": {
+              "endpoint": {
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "$comment": "if splunkPlatform endpoint is provided",
+        "properties": {
+          "splunkPlatform": {
+            "properties": {
+              "endpoint": {
+                "minLength": 1
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "$comment": "then splunkPlatform.index must be provided only when logs are sent via HEC",
+        "properties": {
+          "splunkPlatform": {
+            "if": {
+              "allOf": [
+                {
+                  "properties": {
+                    "logsEnabled": {
+                      "const": true
+                    }
+                  }
+                },
+                {
+                  "not": {
+                    "properties": {
+                      "otlpIngest": {
+                        "properties": {
+                          "enabled": {
+                            "const": true
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "then": {
+              "properties": {
+                "index": {
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

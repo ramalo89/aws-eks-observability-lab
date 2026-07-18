@@ -1,0 +1,1383 @@
+{{/*
+Config for the otel-collector agent
+The values can be overridden in .Values.agent.config
+*/}}
+{{- define "splunk-otel-collector.agentConfig" -}}
+extensions:
+  {{- include "splunk-otel-collector.opampExtension" . | nindent 2 }}
+  {{- include "splunk-otel-collector.o11yIngestHttpForwarderExtension" . | nindent 2 }}
+  {{- if eq (include "splunk-otel-collector.logsEnabled" .) "true" }}
+  file_storage:
+    directory: {{ .Values.logsCollection.checkpointPath }}
+    {{- if not (eq (toString .Values.splunkPlatform.fsyncEnabled) "<nil>") }}
+    fsync: {{ .Values.splunkPlatform.fsyncEnabled }}
+    {{- end }}
+  {{- end }}
+
+  {{- if .Values.splunkPlatform.sendingQueue.persistentQueue.enabled }}
+  file_storage/persistent_queue:
+    directory: {{ .Values.splunkPlatform.sendingQueue.persistentQueue.storagePath }}/agent
+    timeout: 0
+    {{- if not (eq (toString .Values.splunkPlatform.fsyncEnabled) "<nil>") }}
+    fsync: {{ .Values.splunkPlatform.fsyncEnabled }}
+    {{- end }}
+  {{- end }}
+
+
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+  k8s_observer:
+    auth_type: serviceAccount
+    node: ${K8S_NODE_NAME}
+
+  zpages:
+
+  {{- if (eq (include "splunk-otel-collector.splunkO11yEnabled" .) "true") }}
+  headers_setter:
+    headers:
+      - action: upsert
+        key: X-SF-TOKEN
+        from_context: X-SF-TOKEN
+        default_value: "${SPLUNK_OBSERVABILITY_ACCESS_TOKEN}"
+  {{- end }}
+
+receivers:
+  {{- include "splunk-otel-collector.traceReceivers" . | nindent 2 }}
+
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        # https://github.com/open-telemetry/opentelemetry-collector/blob/9d3a8a4608a7dbd9f787867226a78356ace9b5e4/receiver/otlpreceiver/otlp.go#L140-L152
+        endpoint: 0.0.0.0:4318
+
+  {{- if eq (include "splunk-otel-collector.splunkO11yEnabled" .) "true" }}
+  # Placeholder receiver needed for discovery mode
+  nop:
+  {{- end }}
+
+  # Prometheus receiver scraping metrics from the pod itself
+  {{- include "splunk-otel-collector.prometheusInternalMetrics" (dict "receiver" "agent") | nindent 2}}
+
+  {{- if (eq (include "splunk-otel-collector.metricsEnabled" .) "true") }}
+  host_metrics:
+    collection_interval: 10s
+    {{- if not .Values.isWindows }}
+    root_path: "/hostfs"
+    {{- end }}
+    scrapers:
+      cpu:
+      disk:
+      filesystem:
+        # Collect metrics from the root filesystem only to avoid scraping errors since the collector
+        # doesn't have access to all filesystems on the host by default. To collect metrics from
+        # other devices, ensure that they are mounted to the collector container using
+        # agent.extraVolumeMounts and agent.extraVolumes helm values options and override this list
+        # using agent.config.receivers.host_metrics.filesystem.include_mount_points.mount_points helm value.
+        include_mount_points:
+          match_type: strict
+          mount_points:
+            - "/"
+      memory:
+      network:
+      # System load average metrics https://en.wikipedia.org/wiki/Load_(computing)
+      load:
+      # Paging/Swap space utilization and I/O metrics
+      paging:
+      # Aggregated system process count metrics
+      processes:
+      # System processes metrics, disabled by default
+      # process:
+
+  receiver_creator:
+    watch_observers: [k8s_observer]
+    receivers:
+      {{- if or .Values.autodetect.prometheus .Values.autodetect.istio }}
+      {{- if .Values.featureGates.useLightPrometheusReceiver }}
+      lightprometheus:
+      {{- else }}
+      prometheus/autodetect:
+      {{- end }}
+        {{- if .Values.autodetect.prometheus }}
+        # Enable prometheus scraping for pods with standard prometheus annotations
+        rule: type == "pod" && annotations["prometheus.io/scrape"] == "true"
+        {{- else }}
+        # Enable prometheus scraping for Istio pods only
+        rule: type == "pod" && annotations["prometheus.io/scrape"] == "true" && ("istio.io/rev" in labels or "istio.io/rev" in annotations or labels["istio"] == "pilot" or name matches "istio.*")
+        {{- end }}
+        config:
+          {{- if .Values.featureGates.useLightPrometheusReceiver }}
+          endpoint: 'http://`endpoint`:`"prometheus.io/port" in annotations ? annotations["prometheus.io/port"] : 9090``"prometheus.io/path" in annotations ? annotations["prometheus.io/path"] : "/metrics"`'
+          resource_attributes:
+            service.name:
+              enabled: false
+            service.instance.id:
+              enabled: false
+          {{- else }}
+          config:
+            scrape_configs:
+              - job_name: 'autodetect-metrics'
+                metrics_path: '`"prometheus.io/path" in annotations ? annotations["prometheus.io/path"] : "/metrics"`'
+                scrape_interval: 10s
+                static_configs:
+                  - targets: ['`endpoint`:`"prometheus.io/port" in annotations ? annotations["prometheus.io/port"] : 9090`']
+                {{- if not .Values.autodetect.prometheus }}
+                metric_relabel_configs:
+                  - source_labels: [__name__]
+                    action: keep
+                    regex: "(envoy_cluster_lb_healthy_panic|\
+                    envoy_cluster_manager_warming_clusters|\
+                    envoy_cluster_membership_healthy|\
+                    envoy_cluster_membership_total|\
+                    envoy_cluster_ssl_handshake|\
+                    envoy_cluster_ssl_session_reused|\
+                    envoy_cluster_ssl_versions_TLSv1_2|\
+                    envoy_cluster_ssl_versions_TLSv1_3|\
+                    envoy_cluster_upstream_cx_active|\
+                    envoy_cluster_upstream_cx_close_notify|\
+                    envoy_cluster_upstream_cx_connect_attempts_exceeded|\
+                    envoy_cluster_upstream_cx_connect_ms|\
+                    envoy_cluster_upstream_cx_connect_timeout|\
+                    envoy_cluster_upstream_cx_destroy_local_with_active_rq|\
+                    envoy_cluster_upstream_cx_http1_total|\
+                    envoy_cluster_upstream_cx_http2_total|\
+                    envoy_cluster_upstream_cx_idle_timeout|\
+                    envoy_cluster_upstream_cx_max_requests|\
+                    envoy_cluster_upstream_cx_none_healthy|\
+                    envoy_cluster_upstream_cx_pool_overflow|\
+                    envoy_cluster_upstream_cx_protocol_error|\
+                    envoy_cluster_upstream_cx_total|\
+                    envoy_cluster_upstream_rq_4xx|\
+                    envoy_cluster_upstream_rq_5xx|\
+                    envoy_cluster_upstream_rq_active|\
+                    envoy_cluster_upstream_rq_cancelled|\
+                    envoy_cluster_upstream_rq_completed|\
+                    envoy_cluster_upstream_rq_pending_active|\
+                    envoy_cluster_upstream_rq_retry|\
+                    envoy_cluster_upstream_rq_retry_limit_exceeded|\
+                    envoy_cluster_upstream_rq_timeout|\
+                    envoy_cluster_upstream_rq_tx_reset|\
+                    envoy_cluster_upstream_rq_time|\
+                    envoy_cluster_upstream_rq_xx|\
+                    envoy_listener_downstream_cx_total|\
+                    envoy_listener_ssl_versions_TLSv1_2|\
+                    envoy_listener_ssl_versions_TLSv1_3|\
+                    envoy_server_live|\
+                    envoy_server_memory_allocated|\
+                    envoy_server_memory_heap_size|\
+                    envoy_server_total_connections|\
+                    envoy_server_uptime|\
+                    istio_mesh_connections_from_logs|\
+                    istio_monitor_pods_without_sidecars|\
+                    istio_request_bytes|\
+                    istio_request_duration_milliseconds|\
+                    istio_request_messages_total|\
+                    istio_requests_total|\
+                    istio_response_messages_total|\
+                    istio_tcp_connections_closed_total|\
+                    istio_tcp_connections_opened_total|\
+                    istio_tcp_received_bytes_total|\
+                    istio_tcp_response_bytes_total|\
+                    pilot_conflict_inbound_listener|\
+                    pilot_eds_no_instances|\
+                    pilot_k8s_cfg_events|\
+                    pilot_k8s_endpoints_pending_pod|\
+                    pilot_k8s_endpoints_with_no_pods|\
+                    pilot_no_ip|\
+                    pilot_proxy_convergence_time|\
+                    pilot_proxy_queue_time|\
+                    pilot_services|\
+                    pilot_xds_cds_reject|\
+                    pilot_xds_eds_reject|\
+                    pilot_xds_expired_nonce|\
+                    pilot_xds_lds_reject|\
+                    pilot_xds_push_context_errors|\
+                    pilot_xds_push_time|\
+                    pilot_xds_rds_reject|\
+                    pilot_xds_send_time|\
+                    pilot_xds_write_timeout)(?:_sum|_count|_bucket)?"
+            {{- end }}
+          {{- end }}
+      {{- end }}
+
+      # Receivers for collecting k8s control plane metrics.
+      # Distributions besides Kubernetes and Openshift are not supported.
+      # Verified with Kubernetes v1.22 and Openshift v4.10.59.
+      {{- if and (or (eq .Values.distribution "openshift") (eq .Values.distribution "")) (not (.Values.featureGates.useControlPlaneMetricsHistogramData)) }}
+      # Below, the TLS certificate verification is often skipped because the k8s default certificate is self signed and
+      # will fail the verification.
+      {{- if .Values.agent.controlPlaneMetrics.coredns.enabled }}
+      smartagent/coredns:
+        {{- if eq .Values.distribution "openshift" }}
+        rule: type == "pod" && namespace == "openshift-dns" && name contains "dns"
+        {{- else }}
+        rule: type == "pod" && labels["k8s-app"] == "kube-dns"
+        {{- end }}
+        config:
+          extraDimensions:
+            metric_source: k8s-coredns
+          type: coredns
+          {{- if eq .Values.distribution "openshift" }}
+          port: 9154
+          skipVerify: true
+          useHTTPS: true
+          useServiceAccount: true
+          {{- else }}
+          port: 9153
+          {{- end }}
+      {{- end }}
+      {{- if .Values.agent.controlPlaneMetrics.etcd.enabled }}
+      smartagent/etcd:
+        {{- if eq .Values.distribution "openshift" }}
+        rule: type == "pod" && labels["k8s-app"] == "etcd"
+        {{- else }}
+        rule: type == "pod" && (labels["k8s-app"] == "etcd-manager-events" || labels["k8s-app"] == "etcd-manager-main")
+        {{- end }}
+        config:
+          clientCertPath: /otel/etc/etcd/tls.crt
+          clientKeyPath: /otel/etc/etcd/tls.key
+          useHTTPS: true
+          type: etcd
+          {{- if .Values.agent.controlPlaneMetrics.etcd.skipVerify }}
+          skipVerify: true
+          {{- else }}
+          caCertPath: /otel/etc/etcd/cacert.pem
+          skipVerify: false
+          {{- end }}
+          {{- if eq .Values.distribution "openshift" }}
+          port: {{ .Values.agent.controlPlaneMetrics.etcd.port | default 9979 }}
+          {{- else }}
+          port: {{ .Values.agent.controlPlaneMetrics.etcd.port | default 4001 }}
+          {{- end }}
+      {{- end }}
+      {{- if .Values.agent.controlPlaneMetrics.controllerManager.enabled }}
+      smartagent/kube-controller-manager:
+        {{- if eq .Values.distribution "openshift" }}
+        rule: type == "pod" && labels["app"] == "kube-controller-manager" && labels["kube-controller-manager"] == "true"
+        {{- else }}
+        rule: type == "pod" && labels["k8s-app"] == "kube-controller-manager"
+        {{- end }}
+        config:
+          extraDimensions:
+            metric_source: kubernetes-controller-manager
+          port: 10257
+          skipVerify: true
+          type: kube-controller-manager
+          useHTTPS: true
+          useServiceAccount: true
+      {{- end }}
+      {{- if .Values.agent.controlPlaneMetrics.apiserver.enabled }}
+      smartagent/kubernetes-apiserver:
+        {{- if eq .Values.distribution "openshift" }}
+        rule: type == "port" && port == 6443 && pod.labels["app"] == "openshift-kube-apiserver" && pod.labels["apiserver"] == "true"
+        {{- else }}
+        rule: type == "port" && port == 443 && pod.labels["k8s-app"] == "kube-apiserver"
+        {{- end }}
+        config:
+          extraDimensions:
+            metric_source: kubernetes-apiserver
+          skipVerify: true
+          type: kubernetes-apiserver
+          useHTTPS: true
+          useServiceAccount: true
+      {{- end }}
+      {{- if .Values.agent.controlPlaneMetrics.proxy.enabled }}
+      smartagent/kubernetes-proxy:
+        {{- if eq .Values.distribution "openshift" }}
+        rule: type == "port" && pod.labels["app"] == "sdn" && (port == 9101 || port == 29101)
+        {{- else }}
+        rule: type == "pod" && labels["k8s-app"] == "kube-proxy"
+        {{- end }}
+        config:
+          extraDimensions:
+            metric_source: kubernetes-proxy
+          type: kubernetes-proxy
+          # Connecting to kube proxy in unknown Kubernetes distributions can be troublesome and generate log noise
+          # For now, set the scrape failure log level to debug when no specific distribution is selected
+          {{- if eq .Values.distribution "" }}
+          scrapeFailureLogLevel: debug
+          {{- end }}
+          {{- if eq .Values.distribution "openshift" }}
+          skipVerify: true
+          useHTTPS: true
+          useServiceAccount: true
+          {{- else }}
+          port: 10249
+          {{- end }}
+      {{- end }}
+      {{- if .Values.agent.controlPlaneMetrics.scheduler.enabled }}
+      smartagent/kubernetes-scheduler:
+        {{- if eq .Values.distribution "openshift" }}
+        rule: type == "pod" && labels["app"] == "openshift-kube-scheduler" && labels["scheduler"] == "true"
+        {{- else }}
+        rule: type == "pod" && labels["k8s-app"] == "kube-scheduler"
+        {{- end }}
+        config:
+          extraDimensions:
+            metric_source: kubernetes-scheduler
+          skipVerify: true
+          port: 10259
+          type: kubernetes-scheduler
+          useHTTPS: true
+          useServiceAccount: true
+      {{- end }}
+      {{- end }}
+
+      {{- if and (eq (include "splunk-otel-collector.splunkO11yEnabled" .) "true") .Values.featureGates.useControlPlaneMetricsHistogramData }}
+      # Receivers for collecting k8s control plane metrics as native OpenTelemetry metrics, including histogram data.
+      # Below, the TLS certificate verification is often skipped because the k8s default certificate is self signed and
+      # will fail the verification.
+      {{- if .Values.agent.controlPlaneMetrics.coredns.enabled }}
+      {{- if eq .Values.distribution "gke"}}
+      prometheus/kubedns:
+        rule: type == "pod" && labels["k8s-app"] == "kube-dns"
+        config:
+          config:
+            scrape_configs:
+            - job_name: "kubedns"
+              scrape_interval: {{ .Values.agent.controlPlaneMetrics.scrapeInterval }}
+              static_configs:
+                - targets: ['`endpoint`:`"prometheus.io/port" in annotations ? annotations["prometheus.io/port"] : 9153`']
+              tls_config:
+                insecure_skip_verify: true
+      {{- else }}
+      prometheus/coredns:
+        {{- if eq .Values.distribution "openshift" }}
+        rule: type == "pod" && namespace == "openshift-dns" && name contains "dns"
+        {{- else }}
+        rule: type == "pod" && labels["k8s-app"] == "kube-dns"
+        {{- end }}
+        config:
+          config:
+            scrape_configs:
+            - job_name: "coredns"
+              scrape_interval: {{ .Values.agent.controlPlaneMetrics.scrapeInterval }}
+              {{- if eq .Values.distribution "openshift" }}
+              static_configs:
+                - targets: ["`endpoint`:9154"]
+              scheme: https
+              tls_config:
+                insecure_skip_verify: true
+                ca_file: /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt
+              bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+              {{- else }}
+              static_configs:
+                - targets: ["`endpoint`:9153"]
+              {{- end }}
+              metric_relabel_configs:
+                - source_labels: [__name__]
+                  action: keep
+                  regex: "(coredns_dns_request_duration_seconds|\
+                    coredns_cache_misses_total|\
+                    coredns_cache_hits_total|\
+                    coredns_cache_entries|\
+                    coredns_dns_responses_total|\
+                    coredns_dns_requests_total|\
+                    rest_client_requests_total|\
+                    rest_client_request_duration_seconds)(?:_sum|_count|_bucket)?"
+      {{- end }}
+      {{- end }}
+      {{- if .Values.agent.controlPlaneMetrics.etcd.enabled }}
+      prometheus/etcd:
+        {{- if eq .Values.distribution "openshift" }}
+        rule: type == "pod" && labels["k8s-app"] == "etcd"
+        {{- else }}
+        rule: type == "pod" && (labels["k8s-app"] == "etcd-manager-events" || labels["k8s-app"] == "etcd-manager-main" || labels["component"] == "etcd")
+        {{- end }}
+        config:
+          config:
+            scrape_configs:
+            - job_name: "etcd"
+              scrape_interval: {{ .Values.agent.controlPlaneMetrics.scrapeInterval }}
+              {{- if and (or .Values.agent.controlPlaneMetrics.etcd.secret.create .Values.agent.controlPlaneMetrics.etcd.secret.name) (eq .Values.distribution "openshift") }}
+              static_configs:
+                - targets: ["`endpoint`:{{ .Values.agent.controlPlaneMetrics.etcd.port | default 9979 }}"]
+              scheme: https
+              tls_config:
+                insecure_skip_verify: {{ .Values.agent.controlPlaneMetrics.etcd.skipVerify }}
+                cert_file: /otel/etc/etcd/tls.crt
+                key_file: /otel/etc/etcd/tls.key
+                {{- if not .Values.agent.controlPlaneMetrics.etcd.skipVerify }}
+                ca_file: /otel/etc/etcd/cacert.pem
+                {{- end }}
+              {{- else if or .Values.agent.controlPlaneMetrics.etcd.secret.create .Values.agent.controlPlaneMetrics.etcd.secret.name }}
+              static_configs:
+                - targets: ["`endpoint`:{{ .Values.agent.controlPlaneMetrics.etcd.port | default 2379 }}"]
+              scheme: https
+              tls_config:
+                insecure_skip_verify: {{ .Values.agent.controlPlaneMetrics.etcd.skipVerify }}
+                cert_file: /otel/etc/etcd/tls.crt
+                key_file: /otel/etc/etcd/tls.key
+                {{- if not .Values.agent.controlPlaneMetrics.etcd.skipVerify }}
+                ca_file: /otel/etc/etcd/cacert.pem
+                {{- end }}
+              {{- else }}
+              static_configs:
+                - targets: ["`endpoint`:{{ .Values.agent.controlPlaneMetrics.etcd.port | default 2381 }}"]
+              {{- end }}
+              metric_relabel_configs:
+                - source_labels: [__name__]
+                  action: keep
+                  regex: "(etcd_server_is_leader|\
+                    etcd_server_leader_changes_seen_total|\
+                    etcd_server_proposals_applied_total|\
+                    etcd_server_proposals_committed_total|\
+                    etcd_server_proposals_failed_total|\
+                    etcd_server_proposals_pending|\
+                    etcd_disk_wal_fsync_duration_seconds)(?:_sum|_count|_bucket)?"
+      {{- end }}
+      {{- if .Values.agent.controlPlaneMetrics.controllerManager.enabled }}
+      prometheus/kube-controller-manager:
+        {{- if eq .Values.distribution "openshift" }}
+        rule: type == "pod" && labels["app"] == "kube-controller-manager" && labels["kube-controller-manager"] == "true"
+        {{- else }}
+        rule: type == "pod" && (labels["k8s-app"] == "kube-controller-manager" || labels["component"] == "kube-controller-manager")
+        {{- end }}
+        config:
+          config:
+            scrape_configs:
+            - job_name: "kube-controller-manager"
+              scrape_interval: {{ .Values.agent.controlPlaneMetrics.scrapeInterval }}
+              static_configs:
+                - targets: ["`endpoint`:10257"]
+              scheme: https
+              authorization:
+                credentials_file: "/var/run/secrets/kubernetes.io/serviceaccount/token"
+                type: Bearer
+              tls_config:
+                ca_file: "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+                insecure_skip_verify: true
+              metric_relabel_configs:
+                - source_labels: [__name__]
+                  action: keep
+                  regex: "(workqueue_longest_running_processor_seconds|\
+                    workqueue_unfinished_work_seconds|\
+                    workqueue_depth|\
+                    workqueue_retries_total|\
+                    workqueue_queue_duration_seconds)(?:_sum|_count|_bucket)?"
+      {{- end }}
+      {{- if .Values.agent.controlPlaneMetrics.apiserver.enabled }}
+      prometheus/kubernetes-apiserver:
+        {{- if eq .Values.distribution "openshift" }}
+        rule: type == "port" && port == 6443 && pod.labels["app"] == "openshift-kube-apiserver" && pod.labels["apiserver"] == "true"
+        {{- else }}
+        rule: type == "port" && port == 443 && (pod.labels["k8s-app"] == "kube-apiserver" || pod.labels["component"] == "kube-apiserver")
+        {{- end }}
+        config:
+          config:
+            scrape_configs:
+            - job_name: "kubernetes-apiserver"
+              scrape_interval: {{ .Values.agent.controlPlaneMetrics.scrapeInterval }}
+              scheme: https
+              authorization:
+                credentials_file: "/var/run/secrets/kubernetes.io/serviceaccount/token"
+                type: Bearer
+              tls_config:
+                ca_file: "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+                insecure_skip_verify: true
+              static_configs:
+                - targets: ["`endpoint`"]
+              metric_relabel_configs:
+                - source_labels: [__name__]
+                  action: keep
+                  regex: "(apiserver_longrunning_requests|\
+                    apiserver_request_duration_seconds|\
+                    apiserver_storage_objects|\
+                    apiserver_response_sizes|\
+                    apiserver_request_total|\
+                    kubernetes_build_info|\
+                    rest_client_requests_total|\
+                    rest_client_request_duration_seconds|\
+                    apiserver_storage_size_bytes|\
+                    apiserver_requested_deprecated_apis)(?:_sum|_count|_bucket)?"
+      {{- end }}
+      {{- if .Values.agent.controlPlaneMetrics.proxy.enabled }}
+      prometheus/kubernetes-proxy:
+        {{- if eq .Values.distribution "openshift" }}
+        rule: type == "port" && pod.labels["app"] == "sdn" && (port == 9101 || port == 29101)
+        {{- else }}
+        rule: type == "pod" && labels["k8s-app"] == "kube-proxy"
+        {{- end }}
+        config:
+          config:
+            scrape_configs:
+            - job_name: "kubernetes-proxy"
+              scrape_interval: {{ .Values.agent.controlPlaneMetrics.scrapeInterval }}
+              {{- if eq .Values.distribution "openshift" }}
+              scheme: https
+              tls_config:
+                ca_file: "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+                insecure_skip_verify: true
+              authorization:
+                credentials_file: "/var/run/secrets/kubernetes.io/serviceaccount/token"
+                type: Bearer
+              static_configs:
+                - targets: ["`endpoint`"]
+              {{- else }}
+              static_configs:
+                - targets: ["`endpoint`:10249"]
+              {{- end }}
+              metric_relabel_configs:
+                - source_labels: [__name__]
+                  action: keep
+                  regex: "(kubeproxy_sync_proxy_rules_iptables_restore_failures_total|\
+                    kubeproxy_sync_proxy_rules_service_changes_total|\
+                    kubeproxy_sync_proxy_rules_service_changes_pending|\
+                    kubeproxy_sync_proxy_rules_duration_seconds|\
+                    kubeproxy_network_programming_duration_seconds)(?:_sum|_count|_bucket)?"
+                - action: drop
+                  regex: 'kubeproxy_network_programming_duration_seconds_bucket;([1-3][1-46-9]|[4-9][1-9]|100|110|115|270)\.0'
+                  source_labels: [__name__, le]
+      {{- end }}
+      {{- if .Values.agent.controlPlaneMetrics.scheduler.enabled }}
+      prometheus/kubernetes-scheduler:
+        {{- if eq .Values.distribution "openshift" }}
+        rule: type == "pod" && labels["app"] == "openshift-kube-scheduler" && labels["scheduler"] == "true"
+        {{- else }}
+        rule: type == "pod" && (labels["k8s-app"] == "kube-scheduler" || labels["component"] == "kube-scheduler")
+        {{- end }}
+        config:
+          config:
+            scrape_configs:
+            - job_name: "kubernetes-scheduler"
+              scrape_interval: {{ .Values.agent.controlPlaneMetrics.scrapeInterval }}
+              static_configs:
+                - targets: ["`endpoint`:10259"]
+              scheme: https
+              tls_config:
+                ca_file: "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+                insecure_skip_verify: true
+              authorization:
+                credentials_file: "/var/run/secrets/kubernetes.io/serviceaccount/token"
+                type: Bearer
+              metric_relabel_configs:
+                - source_labels: [__name__]
+                  action: keep
+                  regex: "(rest_client_request_duration_seconds|\
+                    rest_client_requests_total|\
+                    scheduler_pending_pods|\
+                    scheduler_schedule_attempts_total|\
+                    scheduler_queue_incoming_pods_total|\
+                    scheduler_preemption_attempts_total|\
+                    scheduler_scheduling_algorithm_duration_seconds|\
+                    scheduler_pod_scheduling_sli_duration_seconds)(?:_sum|_count|_bucket)?"
+      {{- end }}
+    {{- end }}
+
+  kubeletstats:
+    collection_interval: 10s
+    auth_type: serviceAccount
+    endpoint: ${K8S_NODE_IP}:10250
+    metric_groups:
+      - container
+      - pod
+      - node
+      # Volume metrics are not collected by default
+      # - volume
+    # To collect metadata from underlying storage resources, set k8s_api_config and list k8s.volume.type
+    # under extra_metadata_labels
+    # k8s_api_config:
+    #  auth_type: serviceAccount
+    extra_metadata_labels:
+      - container.id
+      # - k8s.volume.type
+    {{- if (eq (include "splunk-otel-collector.splunkO11yEnabled" .) "true") }}
+    # Disable CPU usage metrics as they are not categorized as bundled in Splunk Observability
+    metrics:
+      k8s.pod.cpu.usage:
+        enabled: false
+      k8s.node.cpu.usage:
+        enabled: false
+    {{- end }}
+  {{- end }}
+
+  {{- if .Values.targetallocator.enabled  }}
+  prometheus/ta:
+    config:
+      global:
+        scrape_interval: 30s
+    target_allocator:
+      endpoint: http://{{ include "splunk-otel-collector.targetAllocatorFullname" . }}-ta.{{ .Release.Namespace }}.svc.cluster.local:80
+      interval: 30s
+      collector_id: ${env:K8S_POD_NAME}
+  {{- end }}
+
+  {{- if eq (include "splunk-otel-collector.logsEnabled" .) "true" }}
+  {{- if .Values.logsCollection.containers.enabled }}
+  file_log:
+    {{- if not .Values.featureGates.fixMissedLogsDuringLogRotation }}
+    {{- if .Values.isWindows }}
+    include: ["C:\\var\\log\\pods\\*\\*\\*.log"]
+    {{- else }}
+    include: ["/var/log/pods/*/*/*.log"]
+    {{- end }}
+    {{- else }}
+    {{- if .Values.isWindows }}
+    include: ["C:\\var\\log\\pods\\*\\*\\*.log*"]
+    {{- else }}
+    include: ["/var/log/pods/*/*/*.log*"]
+    {{- end }}
+    {{- end }}
+    # Exclude logs. The file format is
+    # /var/log/pods/<namespace_name>_<pod_name>_<pod_uid>/<container_name>/<restart_count>.log
+    exclude:
+      {{- if .Values.featureGates.fixMissedLogsDuringLogRotation }}
+      {{- if .Values.isWindows }}
+      - "C:\\var\\log\\pods\\*\\*\\*.log*.gz"
+      - "C:\\var\\log\\pods\\*\\*\\*.log*.tmp"
+      {{- else }}
+      - "/var/log/pods/*/*/*.log*.gz"
+      - "/var/log/pods/*/*/*.log*.tmp"
+      {{- end }}
+      {{- end }}
+      {{- if .Values.logsCollection.containers.excludeAgentLogs }}
+      {{- if .Values.isWindows }}
+      - "C:\\var\\log\\pods\\{{ template "splunk-otel-collector.namespace" . }}_{{ include "splunk-otel-collector.fullname" . }}*_*\\otel-collector\\*.log"
+      {{- else }}
+      - /var/log/pods/{{ template "splunk-otel-collector.namespace" . }}_{{ include "splunk-otel-collector.fullname" . }}*_*/otel-collector/*.log
+      {{- end }}
+      {{- end }}
+      {{- range $_, $excludePath := .Values.logsCollection.containers.excludePaths }}
+      - {{ $excludePath }}
+      {{- end }}
+    start_at: beginning
+    include_file_path: true
+    include_file_name: false
+    poll_interval: 200ms
+    max_concurrent_files: 1024
+    encoding: utf-8
+    fingerprint_size: 1kb
+    max_log_size: 1MiB
+    # Disable force flush until this issue is fixed:
+    # https://github.com/open-telemetry/opentelemetry-log-collection/issues/292
+    force_flush_period: "0"
+    storage: file_storage
+    retry_on_failure:
+      enabled: true
+      {{- if .Values.featureGates.noDropLogsPipeline }}
+      max_elapsed_time: 0s
+      {{- end }}
+    operators:
+      - type: container
+        id: container-parser
+        {{- if .Values.logsCollection.containers.containerRuntime }}
+        format: {{ .Values.logsCollection.containers.containerRuntime }}
+        {{- end }}
+        add_metadata_from_filepath: true
+        max_log_size: {{ $.Values.logsCollection.containers.maxRecombineLogSize }}
+      # Recombine Docker partial log lines (no logtag means Docker format)
+      - type: recombine
+        id: docker-recombine
+        if: attributes.logtag == nil
+        combine_field: body
+        source_identifier: attributes["log.file.path"]
+        is_last_entry: body endsWith "\n"
+        combine_with: ""
+        max_log_size: {{ $.Values.logsCollection.containers.maxRecombineLogSize }}
+      - type: add
+        id: handle_empty_log
+        if: body == nil
+        field: body
+        value: ""
+      - type: add
+        field: resource["com.splunk.sourcetype"]
+        value: EXPR("kube:container:"+resource["k8s.container.name"])
+      - type: move
+        from: attributes["log.file.path"]
+        to: resource["com.splunk.source"]
+      {{- with .Values.logsCollection.containers.extraOperators }}
+      {{ . | toYaml | nindent 6 }}
+      {{- end }}
+      {{- if .Values.logsCollection.containers.multilineConfigs }}
+      - type: router
+        routes:
+        {{- range $.Values.logsCollection.containers.multilineConfigs }}
+          - output: {{ include "splunk-otel-collector.newlineKey" . | quote }}
+            expr: {{ include "splunk-otel-collector.newlineExpr" . | quote }}
+        {{- end }}
+        default: post-multiline
+      {{- range $.Values.logsCollection.containers.multilineConfigs }}
+      - type: recombine
+        id: {{ include "splunk-otel-collector.newlineKey" . | quote}}
+        output: post-multiline
+        source_identifier: resource["com.splunk.source"]
+        combine_field: body
+        is_first_entry: 'body matches {{ .firstEntryRegex | quote }}'
+        max_log_size: {{ $.Values.logsCollection.containers.maxRecombineLogSize }}
+        {{- if hasKey . "combineWith" }}
+        combine_with: {{ .combineWith | quote }}
+        {{- end }}
+        {{- if hasKey . "maxNumOfLinesToCombine" }}
+        max_batch_size: {{ .maxNumOfLinesToCombine }}
+        {{- end }}
+        {{- if hasKey . "maxUnmatchedBatchSize" }}
+        max_unmatched_batch_size: {{ .maxUnmatchedBatchSize }}
+        {{- end }}
+      {{- end }}
+      - type: noop
+        id: post-multiline
+      {{- end }}
+  {{- end }}
+
+  {{- if .Values.logsCollection.extraFileLogs }}
+  {{- $extraFileLogsList := .Values.logsCollection.extraFileLogs }}
+  {{- range $extraFileLogKey, $extraFileLogValue := $extraFileLogsList }}
+  {{- printf "%s:" $extraFileLogKey | nindent 2 }}
+  {{- if not $extraFileLogValue.storage }}
+    storage: file_storage
+  {{- end }}
+  {{- $extraFileLogValue | toYaml | nindent 4 }}
+  {{- end }}
+  {{- end }}
+
+  # https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/journaldreceiver
+  {{- if .Values.logsCollection.journald.enabled }}
+  {{- range $_, $unit := .Values.logsCollection.journald.units }}
+  {{- printf "journald/%s:" $unit.name | nindent 2 }}
+  {{- if $.Values.logsCollection.journald.useHostJournalctl }}
+    root_path: {{ $.Values.logsCollection.journald.root_path }}
+    journalctl_path: {{ $.Values.logsCollection.journald.journalctl_path }}
+  {{- end }}
+    directory: {{ $.Values.logsCollection.journald.directory }}
+    units: [{{ $unit.name }}]
+    priority: {{ $unit.priority }}
+    retry_on_failure:
+      enabled: true
+    storage: file_storage
+    operators:
+    - type: add
+      field: resource["com.splunk.source"]
+      value: {{ $.Values.logsCollection.journald.directory }}
+    - type: add
+      field: resource["com.splunk.sourcetype"]
+      value: 'EXPR("kube:journald:"+body._SYSTEMD_UNIT)'
+    - type: add
+      field: resource["com.splunk.index"]
+      value: {{ $.Values.logsCollection.journald.index | default $.Values.splunkPlatform.index }}
+    - type: add
+      field: resource["host.name"]
+      value: 'EXPR(env("K8S_NODE_NAME"))'
+    - type: add
+      field: resource["journald.priority.number"]
+      value: 'EXPR(body.PRIORITY)'
+    - type: add
+      field: resource["journald.unit.name"]
+      value: 'EXPR(body._SYSTEMD_UNIT)'
+
+    # extract MESSAGE field into the log body and discard rest of the fields
+    - type: move
+      id: set-body
+      from: body.MESSAGE
+      to: body
+  {{- end }}
+  {{- end }}
+  {{- end }}
+
+# By default k8s_attributes and batch processors enabled.
+processors:
+  {{- include "splunk-otel-collector.k8sAttributesProcessor" . | nindent 2 }}
+    # Agent specific configuration of k8s_attributes:
+    # If gateway deployment is enabled, the `passthrough` configuration is enabled by default.
+    # It means that traces and metrics enrichment happens in the gateway, and the agent only passes information
+    # about traces and metrics source, without calling k8s API.
+    {{- if .Values.gateway.enabled }}
+    passthrough: true
+    {{- end }}
+    filter:
+      node_from_env_var: K8S_NODE_NAME
+
+
+  {{- if (eq (include "splunk-otel-collector.platformMetricsEnabled" $) "true") }}
+  {{- include "splunk-otel-collector.k8sAttributesSplunkPlatformMetrics" . | nindent 2 }}
+    filter:
+      node_from_env_var: K8S_NODE_NAME
+  {{- if or .Values.splunkPlatform.metricsSourcetype .Values.splunkPlatform.sourcetype }}
+  {{- include "splunk-otel-collector.resourceMetricsProcessor" . | nindent 2 }}
+  {{- end }}
+  {{- end }}
+
+
+  {{- if not .Values.gateway.enabled }}
+  {{- include "splunk-otel-collector.resourceLogsProcessor" . | nindent 2 }}
+  {{- if .Values.autodetect.istio }}
+  {{- include "splunk-otel-collector.transformLogsProcessor" . | nindent 2 }}
+  {{- end }}
+  {{- include "splunk-otel-collector.filterLogsProcessors" . | nindent 2 }}
+  {{- if .Values.splunkPlatform.fieldNameConvention.renameFieldsSck }}
+  transform/logs:
+    log_statements:
+      - context: log
+        statements:
+          - set(resource.attributes["container_image"], Concat([resource.attributes["container.image.name"], resource.attributes["container.image.tag"]], ":"))
+  {{- end }}
+  {{- end }}
+
+  {{- include "splunk-otel-collector.otelMemoryLimiterConfig" . | nindent 2 }}
+
+  batch:
+    metadata_keys:
+      - X-SF-Token
+
+  # Resource detection processor is configured to override all host and cloud
+  # attributes because OTel Collector Agent is the source of truth for all host
+  # and cloud metadata, and instrumentation libraries can send wrong host
+  # attributes from container environments.
+  {{- include "splunk-otel-collector.resourceDetectionProcessor" . | nindent 2 }}
+
+  # Resource detection processor that only detects the k8s.cluster.name attribute.
+  {{- if eq (include "splunk-otel-collector.autoDetectClusterName" .) "true" }}
+  {{- include "splunk-otel-collector.resourceDetectionProcessorKubernetesClusterName" . | nindent 2 }}
+  {{- end }}
+
+  # General resource attributes that apply to all telemetry passing through the agent.
+  # It's important to put this processor after resourcedetection to make sure that
+  # k8s.name.cluster attribute is always set to "{{ .Values.clusterName }}" when
+  # it's declared.
+  resource:
+    attributes:
+      - action: insert
+        key: k8s.node.name
+        value: "${K8S_NODE_NAME}"
+      {{- if .Values.clusterName }}
+      - action: upsert
+        key: k8s.cluster.name
+        value: {{ .Values.clusterName }}
+      {{- end }}
+      {{- range .Values.extraAttributes.custom }}
+      - action: insert
+        key: "{{ .name }}"
+        value: "{{ .value }}"
+      {{- end }}
+      {{- if .Values.splunkPlatform.fieldNameConvention.renameFieldsSck }}
+      - key: cluster_name
+        from_attribute: k8s.cluster.name
+        action: upsert
+      {{- if not .Values.splunkPlatform.fieldNameConvention.keepOtelConvention }}
+      - key: k8s.cluster.name
+        action: delete
+      {{- end }}
+      {{- end }}
+
+  # Resource attributes specific to the agent itself.
+  resource/add_agent_k8s:
+    attributes:
+      - action: insert
+        key: k8s.pod.name
+        value: "${K8S_POD_NAME}"
+      - action: insert
+        key: k8s.pod.uid
+        value: "${K8S_POD_UID}"
+      - action: insert
+        key: k8s.namespace.name
+        value: "${K8S_NAMESPACE}"
+
+  {{- if (eq (include "splunk-otel-collector.platformLogsViaOtlpEnabled" .) "true") }}
+  {{- include "splunk-otel-collector.otlpPlatformLogsResourceProcessor" . | nindent 2 }}
+  {{- end }}
+
+  {{- if .Values.environment }}
+  resource/add_environment:
+    attributes:
+      - action: insert
+        key: deployment.environment
+        value: "{{ .Values.environment }}"
+  {{- end }}
+
+  {{- if .Values.isWindows }}
+  metricstransform:
+    transforms:
+      - include: container.memory.working_set
+        action: insert
+        new_name: container.memory.usage
+  {{- end }}
+
+  {{- if or .Values.autodetect.prometheus .Values.autodetect.istio }}
+  # This processor is used to remove excessive Istio attributes to avoid running into the dimensions limit.
+  # This configuration assumes single cluster Istio deployment. If you run Istio in multi-cluster scenarios or make use of the canonical service and revision labels,
+  # you may need to adjust this configuration.
+  attributes/istio:
+    include:
+      match_type: regexp
+      metric_names:
+        - istio_.*
+    actions:
+      - action: delete
+        key: source_cluster
+      - action: delete
+        key: destination_cluster
+      - action: delete
+        key: source_canonical_service
+      - action: delete
+        key: destination_canonical_service
+      - action: delete
+        key: source_canonical_revision
+      - action: delete
+        key: destination_canonical_revision
+
+  # This processor is used to remove excessive attributes from Prometheus metrics to avoid running into the dimensions limit.
+  # These attributes are resource attributes coming from Prometheus scraping, which are eventually converted into
+  # data point attributes in the SignalFx exporter, counting against the dimension limit.
+  # The dimension limit is being hit most frequently in Istio environments.
+  transform/drop_server_attrs:
+    error_mode: ignore
+    metric_statements:
+      - delete_key(resource.attributes, "server.address") where scope.name == "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusreceiver"
+      - delete_key(resource.attributes, "server.port") where scope.name == "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusreceiver"
+  {{- end }}
+
+# If the gateway deployment is enabled, it will use a otlp_grpc exporter to send from the daemonset
+# to the gateway deployment.
+# Otherwise it's pointed directly to signalfx backend based on the values provided in signalfx setting,
+# using the otlp_http exporter.
+# These values should not be specified manually and will be set in the templates.
+exporters:
+
+  {{- if .Values.gateway.enabled }}
+  # If gateway is enabled, metrics, logs and traces will be sent to the gateway
+  otlp_grpc:
+    endpoint: {{ include "splunk-otel-collector.fullname" . }}:4317
+    tls:
+      insecure: true
+    {{- if (eq (include "splunk-otel-collector.splunkO11yEnabled" .) "true") }}
+    auth:
+      authenticator: headers_setter
+    {{- end }}
+  {{- else }}
+  # If gateway is disabled, data will be sent to directly to backends.
+  {{- if (eq (include "splunk-otel-collector.o11yTracesEnabled" .) "true") }}
+  {{- include "splunk-otel-collector.otlpHttpExporter" . | nindent 2 }}
+  {{- end }}
+  {{- if (eq (include "splunk-otel-collector.o11yProfilingEnabled" .) "true") }}
+  splunk_hec/o11y:
+    endpoint: {{ include "splunk-otel-collector.o11yIngestUrl" . }}/v1/log
+    token: "${SPLUNK_OBSERVABILITY_ACCESS_TOKEN}"
+    log_data_enabled: false
+    profiling_data_enabled: {{ .Values.splunkObservability.profilingEnabled }}
+    # TODO: Performance testing must be done before enabling compression
+    disable_compression: true
+  {{- end }}
+  {{- if .Values.splunkObservability.secureAppEnabled }}
+  otlp_http/secureapp:
+    logs_endpoint: {{ include "splunk-otel-collector.o11yIngestUrl" . }}/v3/event
+    headers:
+      "X-SF-TOKEN": "${SPLUNK_OBSERVABILITY_ACCESS_TOKEN}"
+      "X-Splunk-Instrumentation-Library": secureapp
+  {{- end }}
+  {{- $_ := set . "addPersistentStorage" .Values.splunkPlatform.sendingQueue.persistentQueue.enabled }}
+  {{- if (eq (include "splunk-otel-collector.platformLogsViaOtlpEnabled" .) "true") }}
+  {{- include "splunk-otel-collector.otlpPlatformLogsExporter" . | nindent 2 }}
+  {{- else if (eq (include "splunk-otel-collector.platformLogsEnabled" .) "true") }}
+  {{- include "splunk-otel-collector.splunkPlatformLogsExporter" . | nindent 2 }}
+  {{- end }}
+  {{- if (eq (include "splunk-otel-collector.platformMetricsEnabled" .) "true") }}
+  {{- include "splunk-otel-collector.splunkPlatformMetricsExporter" . | nindent 2 }}
+  {{- end }}
+  {{- if (eq (include "splunk-otel-collector.platformTracesEnabled" .) "true") }}
+  {{- include "splunk-otel-collector.splunkPlatformTracesExporter" . | nindent 2 }}
+  {{- end }}
+  {{- $_ := unset . "addPersistentStorage" }}
+  {{- end }}
+
+  {{- if (eq (include "splunk-otel-collector.splunkO11yEnabled" .) "true") }}
+  signalfx:
+    correlation:
+    {{- if .Values.gateway.enabled }}
+    # Note: The ingest URL is not used when the gateway is enabled, thus port 9943 is not exposed by the gateway
+    ingest_url: http://{{ include "splunk-otel-collector.fullname" . }}:9943
+    api_url: http://{{ include "splunk-otel-collector.fullname" . }}:6060
+    {{- else }}
+    ingest_url: {{ include "splunk-otel-collector.o11yIngestUrl" . }}
+    api_url: {{ include "splunk-otel-collector.o11yApiUrl" . }}
+    {{- end }}
+    access_token: ${SPLUNK_OBSERVABILITY_ACCESS_TOKEN}
+    {{- if eq (include "splunk-otel-collector.o11yMetricsEnabled" $) "true" }}
+    sync_host_metadata: true
+    {{- if not .Values.isWindows }}
+    root_path: /hostfs
+    {{- end }}
+    {{- end }}
+
+  {{- if and .Values.gateway.enabled (eq (include "splunk-otel-collector.o11yMetricsEnabled" .) "true") }}
+  signalfx/host_metadata:
+    correlation:
+    # Note: The ingest URL is not used when the gateway is enabled, thus port 9943 is not exposed by the gateway
+    ingest_url: http://{{ include "splunk-otel-collector.fullname" . }}:9943
+    api_url: http://{{ include "splunk-otel-collector.fullname" . }}:6060
+    access_token: ${SPLUNK_OBSERVABILITY_ACCESS_TOKEN}
+    sync_host_metadata: true
+    {{- if not .Values.isWindows }}
+    root_path: /hostfs
+    {{- end }}
+    exclude_metrics:
+      - metric_name: "**"
+  {{- end }}
+
+  # To send entities (applicable only if discovery mode is enabled)
+  otlp_http/entities:
+    {{- if .Values.gateway.enabled }}
+    endpoint: http://{{ include "splunk-otel-collector.fullname" . }}:4318
+    {{- else }}
+    logs_endpoint: {{ include "splunk-otel-collector.o11yIngestUrl" . }}/v3/event
+    {{- end }}
+    auth:
+      authenticator: headers_setter
+
+  {{- if .Values.featureGates.useControlPlaneMetricsHistogramData }}
+  signalfx/histograms:
+    ingest_url: {{ include "splunk-otel-collector.o11yIngestUrl" . }}
+    api_url: {{ include "splunk-otel-collector.o11yApiUrl" . }}
+    access_token: ${SPLUNK_OBSERVABILITY_ACCESS_TOKEN}
+    send_otlp_histograms: true
+  {{- end }}
+  {{- end }}
+
+{{- if .Values.splunkObservability.secureAppEnabled }}
+connectors:
+  routing/logs:
+    {{- if or (eq (include "splunk-otel-collector.logsEnabled" .) "true") (eq (include "splunk-otel-collector.profilingEnabled" .) "true") }}
+    default_pipelines: [logs]
+    {{- else }}
+    default_pipelines: []
+    {{- end }}
+    table:
+      - context: log
+        condition: instrumentation_scope.name == "secureapp"
+        pipelines: [logs/secureapp]
+{{- end }}
+
+service:
+  telemetry:
+    resource:
+      attributes:
+        - name: service.name
+          value: otel-agent
+        - name: otelcol.service.mode
+          value: agent
+        - name: k8s.pod.name
+          value: "${K8S_POD_NAME}"
+        - name: k8s.namespace.name
+          value: "${K8S_NAMESPACE}"
+        - name: k8s.pod.uid
+          value: "${K8S_POD_UID}"
+        - name: k8s.node.name
+          value: "${K8S_NODE_NAME}"
+        {{- if and .Values.clusterName .Values.splunkPlatform.fieldNameConvention.keepOtelConvention }}
+        - name: k8s.cluster.name
+          value: {{ .Values.clusterName }}
+        {{- end }}
+        {{- if and .Values.clusterName .Values.splunkPlatform.fieldNameConvention.renameFieldsSck }}
+        - name: cluster_name
+          value: {{ .Values.clusterName }}
+        {{- end }}
+        {{- range .Values.extraAttributes.custom }}
+        - name: "{{ .name }}"
+          value: "{{ .value }}"
+        {{- end }}
+        {{- if (eq (include "splunk-otel-collector.platformMetricsEnabled" $) "true") }}
+        {{- $splunkSourcetype := .Values.splunkPlatform.metricsSourcetype | default .Values.splunkPlatform.sourcetype }}
+        {{- if $splunkSourcetype }}
+        - name: com.splunk.sourcetype
+          value: {{ $splunkSourcetype | quote }}
+        {{- end }}
+        {{- end }}
+    metrics:
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: localhost
+                port: 8889
+                without_scope_info: true
+                without_units: true
+                without_type_suffix: true
+  extensions:
+    {{- if eq (include "splunk-otel-collector.logsEnabled" .) "true" }}
+    - file_storage
+    {{- end }}
+    {{- if .Values.splunkPlatform.sendingQueue.persistentQueue.enabled }}
+    - file_storage/persistent_queue
+    {{- end }}
+    - health_check
+    {{- if (eq (include "splunk-otel-collector.splunkO11yEnabled" .) "true") }}
+    - headers_setter
+    - http_forwarder/opamp_splunk_o11y
+    - opamp/splunk_o11y
+    {{- end }}
+    - k8s_observer
+    - zpages
+
+  # By default there are two pipelines sending metrics and traces to standalone otel-collector otlp format
+  # or directly to signalfx backend depending on gateway.enabled configuration.
+  # The default pipelines should to be changed. You can add any custom pipeline instead.
+  # In order to disable a default pipeline just set it to `null` in agent.config overrides.
+  pipelines:
+    {{- if .Values.splunkObservability.secureAppEnabled }}
+    # secure application events — always routed via routing/logs connector
+    logs/secureapp:
+      receivers: [routing/logs]
+      processors:
+        - memory_limiter
+        - k8s_attributes
+        {{- if eq (include "splunk-otel-collector.autoDetectClusterName" .) "true" }}
+        - resourcedetection/k8s_cluster_name
+        {{- end }}
+        - resource
+        - batch
+      exporters:
+        {{- if .Values.gateway.enabled }}
+        - otlp_grpc
+        {{- else }}
+        - otlp_http/secureapp
+        {{- end }}
+    # receives all OTLP logs; routes secureapp scope to logs/secureapp, rest to default_pipelines
+    logs/split:
+      receivers: [otlp]
+      exporters: [routing/logs]
+    {{- end }}
+    {{- if or (eq (include "splunk-otel-collector.logsEnabled" .) "true") (eq (include "splunk-otel-collector.profilingEnabled" .) "true") }}
+    # default logs + profiling data pipeline
+    logs:
+      receivers:
+        {{- if and (eq (include "splunk-otel-collector.logsEnabled" .) "true") .Values.logsCollection.containers.enabled }}
+        - file_log
+        {{- end }}
+        {{- if .Values.splunkObservability.secureAppEnabled }}
+        - routing/logs
+        {{- else }}
+        - otlp
+        {{- end }}
+      processors:
+        - memory_limiter
+        - k8s_attributes
+        {{- if not .Values.gateway.enabled }}
+        - filter/logs
+        {{- end }}
+        {{- if not .Values.featureGates.noDropLogsPipeline }}
+        - batch
+        {{- end }}
+        - resourcedetection
+        - resource
+        {{- if not .Values.gateway.enabled }}
+        {{- if .Values.splunkPlatform.fieldNameConvention.renameFieldsSck }}
+        - transform/logs
+        {{- end }}
+        {{- if .Values.autodetect.istio }}
+        - transform/istio_service_name
+        {{- end }}
+        - resource/logs
+        {{- if (eq (include "splunk-otel-collector.platformLogsViaOtlpEnabled" .) "true") }}
+        - resource/otlp_platform_logs
+        {{- end }}
+        {{- end }}
+        {{- if .Values.environment }}
+        - resource/add_environment
+        {{- end }}
+      exporters:
+        {{- if .Values.gateway.enabled }}
+        - otlp_grpc
+        {{- else }}
+        {{- if (eq (include "splunk-otel-collector.o11yProfilingEnabled" .) "true") }}
+        - splunk_hec/o11y
+        {{- end }}
+        {{- if (eq (include "splunk-otel-collector.platformLogsViaOtlpEnabled" .) "true") }}
+        - {{ include "splunk-otel-collector.otlpPlatformLogsExporterName" . }}
+        {{- else if (eq (include "splunk-otel-collector.platformLogsEnabled" .) "true") }}
+        - splunk_hec/platform_logs
+        {{- end }}
+        {{- end }}
+
+    {{- if or .Values.logsCollection.extraFileLogs .Values.logsCollection.journald.enabled }}
+    logs/host:
+      receivers:
+        {{- if .Values.logsCollection.extraFileLogs }}
+        {{- range $key, $exporterData := .Values.logsCollection.extraFileLogs }}
+        - {{ $key }}
+        {{- end }}
+        {{- end }}
+        {{- if (.Values.logsCollection.journald.enabled)}}
+        {{- range $_, $unit := .Values.logsCollection.journald.units }}
+        {{- printf "- journald/%s" $unit.name | nindent 8 }}
+        {{- end }}
+        {{- end }}
+      processors:
+        - memory_limiter
+        {{- if not .Values.featureGates.noDropLogsPipeline }}
+        - batch
+        {{- end }}
+        - resourcedetection
+        {{- if eq (include "splunk-otel-collector.autoDetectClusterName" .) "true" }}
+        - resourcedetection/k8s_cluster_name
+        {{- end }}
+        - resource
+        {{- if and (not .Values.gateway.enabled) (eq (include "splunk-otel-collector.platformLogsViaOtlpEnabled" .) "true") }}
+        - resource/otlp_platform_logs
+        {{- end }}
+        {{- if .Values.environment }}
+        - resource/add_environment
+        {{- end }}
+      exporters:
+        {{- if .Values.gateway.enabled }}
+        - otlp_grpc
+        {{- else }}
+        {{- if (eq (include "splunk-otel-collector.platformLogsViaOtlpEnabled" .) "true") }}
+        - {{ include "splunk-otel-collector.otlpPlatformLogsExporterName" . }}
+        {{- else if eq (include "splunk-otel-collector.platformLogsEnabled" .) "true" }}
+        - splunk_hec/platform_logs
+        {{- end }}
+        {{- end }}
+        {{- end }}
+    {{- end }}
+
+    {{- if (eq (include "splunk-otel-collector.tracesEnabled" .) "true") }}
+    # Default traces pipeline.
+    traces:
+      receivers:
+        - otlp
+        - jaeger
+        - zipkin
+      processors:
+        - memory_limiter
+        - k8s_attributes
+        - batch
+        - resourcedetection
+        - resource
+        {{- if .Values.environment }}
+        - resource/add_environment
+        {{- end }}
+      exporters:
+        {{- if .Values.gateway.enabled }}
+        - otlp_grpc
+        {{- else }}
+        {{- if (eq (include "splunk-otel-collector.o11yTracesEnabled" .) "true") }}
+        - otlp_http
+        {{- end }}
+        {{- if (eq (include "splunk-otel-collector.platformTracesEnabled" .) "true") }}
+        - splunk_hec/platform_traces
+        {{- end }}
+        {{- end }}
+    {{- end }}
+
+    {{- if (eq (include "splunk-otel-collector.metricsEnabled" .) "true") }}
+    # Default metrics pipeline.
+    metrics:
+      receivers:
+        - host_metrics
+        - kubeletstats
+        - otlp
+        {{- if not .Values.featureGates.useControlPlaneMetricsHistogramData }}
+        - receiver_creator
+        {{- end }}
+        {{- if .Values.targetallocator.enabled  }}
+        - prometheus/ta
+        {{- end }}
+      processors:
+        - memory_limiter
+        - batch
+        {{- if or .Values.autodetect.prometheus .Values.autodetect.istio }}
+        - attributes/istio
+        - transform/drop_server_attrs
+        {{- end }}
+        - resourcedetection
+        - resource
+        {{/*
+        The attribute `deployment.environment` is not being set on metrics sent to Splunk Observability because it's already synced as the `sf_environment` property.
+        More details: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/exporter/signalfxexporter#traces-configuration-correlation-only
+        */}}
+        {{- if (and .Values.splunkPlatform.metricsEnabled .Values.environment) }}
+        - resource/add_environment
+        {{- end }}
+        {{- if .Values.isWindows }}
+        - metricstransform
+        {{- end }}
+        {{- if (eq (include "splunk-otel-collector.platformMetricsEnabled" $) "true") }}
+        - k8s_attributes/metrics
+        {{- if or .Values.splunkPlatform.metricsSourcetype .Values.splunkPlatform.sourcetype }}
+        - resource/metrics
+        {{- end }}
+        {{- end }}
+      exporters:
+        {{- if .Values.gateway.enabled }}
+        - otlp_grpc
+        {{- if (eq (include "splunk-otel-collector.o11yMetricsEnabled" .) "true") }}
+        # The signalfx exporter is only being used to sync host metadata when gateway is enabled.
+        # The otlp exporter sends the metric data.
+        - signalfx/host_metadata
+        {{- end }}
+        {{- else }}
+        {{- if (eq (include "splunk-otel-collector.o11yMetricsEnabled" .) "true") }}
+        - signalfx
+        {{- end }}
+        {{- if (eq (include "splunk-otel-collector.platformMetricsEnabled" .) "true") }}
+        - splunk_hec/platform_metrics
+        {{- end }}
+        {{- end }}
+    {{- end }}
+
+    {{- if or (eq (include "splunk-otel-collector.splunkO11yEnabled" .) "true") (eq (include "splunk-otel-collector.platformMetricsEnabled" .) "true") }}
+    # Pipeline for metrics collected about the agent pod itself.
+    metrics/agent:
+      receivers: [prometheus/agent]
+      processors:
+        - memory_limiter
+        - batch
+        - resourcedetection
+        {{- if (eq (include "splunk-otel-collector.platformMetricsEnabled" $) "true") }}
+        - k8s_attributes/metrics
+        {{- end }}
+      exporters:
+        {{- if .Values.gateway.enabled }}
+        - otlp_grpc
+        {{- else }}
+        {{- if (eq (include "splunk-otel-collector.splunkO11yEnabled" .) "true") }}
+        - signalfx
+        {{- end }}
+        {{- if (eq (include "splunk-otel-collector.platformMetricsEnabled" .) "true") }}
+        - splunk_hec/platform_metrics
+        {{- end }}
+        {{- end }}
+    {{- end }}
+
+    {{- if eq (include "splunk-otel-collector.splunkO11yEnabled" .) "true" }}
+    logs/entities:
+      # Receivers are added dynamically if discovery mode is enabled
+      receivers: [nop]
+      processors:
+        - memory_limiter
+        - batch
+        - resourcedetection
+        - resource
+      exporters: [otlp_http/entities]
+
+    {{- if and .Values.featureGates.useControlPlaneMetricsHistogramData (eq (include "splunk-otel-collector.metricsEnabled" .) "true") }}
+    metrics/histograms:
+      receivers:
+       - receiver_creator
+      processors:
+        - memory_limiter
+        - batch
+        - resource/add_agent_k8s
+        - resourcedetection
+        - resource
+        {{- if or .Values.autodetect.prometheus .Values.autodetect.istio }}
+        - attributes/istio
+        - transform/drop_server_attrs
+        {{- end }}
+      exporters:
+        - signalfx/histograms
+    {{- end }}
+    {{- end }}
+{{- end }}
+{{/*
+Discovery properties for the otel-collector agent
+The values can be overridden in .Values.agent.discovery.properties.
+*/}}
+{{- define "splunk-otel-collector.agentDiscoveryProperties" -}}
+extensions:
+  docker_observer:
+    enabled: false
+  host_observer:
+    enabled: false
+receivers: {}
+{{- end }}

@@ -1,0 +1,28 @@
+clusterName: my-cluster
+splunkObservability:
+  realm: us0
+  accessToken: my-access-token
+
+agent:
+  config:
+    exporters:
+      otlp_grpc:
+        endpoint: 192.168.0.10:4317
+        tls:
+          insecure: true
+      signalfx:
+        ingest_url: http://192.168.0.10:9943
+        api_url: http://192.168.0.10:6060
+    service:
+      pipelines:
+        traces:
+          exporters: [otlp_grpc, signalfx]
+        metrics:
+          exporters: [otlp_grpc]
+
+clusterReceiver:
+  config:
+    exporters:
+      signalfx:
+        ingest_url: http://192.168.0.10:9943
+        api_url: http://192.168.0.10:6060

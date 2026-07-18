@@ -1,0 +1,12 @@
+# Custom Helm values for the Splunk OpenTelemetry Collector lab.
+#
+# Chart:
+#   splunk-otel-collector
+#
+# Chart version:
+#   0.156.0
+#
+# Important:
+# - Keep this file limited to settings we intentionally override.
+# - Do not copy the entire upstream values.yaml into this file.
+# - Do not store the Splunk access token in this file.

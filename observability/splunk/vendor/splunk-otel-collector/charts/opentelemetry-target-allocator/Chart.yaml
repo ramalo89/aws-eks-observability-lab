@@ -1,0 +1,12 @@
+apiVersion: v2
+appVersion: 0.153.0
+description: OpenTelemetry Target Allocator Helm chart for Kubernetes
+home: https://opentelemetry.io/
+icon: https://opentelemetry.io/img/logos/opentelemetry-logo-nav.png
+maintainers:
+- name: atoulme
+name: opentelemetry-target-allocator
+sources:
+- https://github.com/open-telemetry/opentelemetry-operator
+type: application
+version: 0.130.0
