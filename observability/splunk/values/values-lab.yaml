@@ -1,7 +1,11 @@
-# Custom Helm values for the Splunk OpenTelemetry Collector lab.
+###############################################################################
+# Splunk OpenTelemetry Collector
 #
-# Chart:
-#   splunk-otel-collector
+# Purpose:
+#   Overrides for the upstream Helm chart. Custom Helm values for the Splunk OpenTelemetry Collector lab.
+#
+# Upstream chart:
+#   vendor/splunk-otel-collector
 #
 # Chart version:
 #   0.156.0
