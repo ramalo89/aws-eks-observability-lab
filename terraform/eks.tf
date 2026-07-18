@@ -19,9 +19,8 @@ resource "aws_eks_cluster" "lab" {
     endpoint_private_access = true
     endpoint_public_access  = true
 
-    public_access_cidrs = [
-      var.home_ip_cidr
-    ]
+    public_access_cidrs = var.allowed_api_cidrs
+
   }
 
   enabled_cluster_log_types = var.cluster_log_types

@@ -136,9 +136,16 @@ variable "managed_by" {
   default     = "terraform"
 }
 
-variable "home_ip_cidr" {
-  description = "Home public IP CIDR allowed to access the EKS public API endpoint."
-  type        = string
+variable "allowed_api_cidrs" {
+  description = "CIDR blocks allowed to access the EKS API endpoint"
+  type        = list(string)
+
+  validation {
+    condition = alltrue([
+      for cidr in var.allowed_api_cidrs : can(cidrhost(cidr, 0))
+    ])
+    error_message = "Each value in allowed_api_cidrs must be a valid CIDR block."
+  }
 }
 
 variable "cluster_role_name" {
