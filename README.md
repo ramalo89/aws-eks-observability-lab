@@ -498,6 +498,7 @@ Install the Splunk OpenTelemetry Collector.
 helm install splunk-otel-collector \
   splunk-otel-collector-chart/splunk-otel-collector \
   --namespace splunk \
+  --version 0.156.0 \
   -f observability/splunk/values/values.yaml
 ```
 
@@ -508,7 +509,23 @@ helm install splunk-otel-collector \
 Confirm that the Helm release was installed successfully.
 
 ```bash
+helm status splunk-otel-collector -n splunk
+```
+
+```bash
 helm list -n splunk
+```
+
+### Apply Future Configuration Changes
+
+After changing `values.yaml` on an existing installation, apply the updated configuration:
+
+```bash
+helm upgrade splunk-otel-collector \
+  splunk-otel-collector-chart/splunk-otel-collector \
+  --namespace splunk \
+  --version 0.156.0 \
+  -f observability/splunk/values/values.yaml
 ```
 
 ---
@@ -531,21 +548,35 @@ kubectl get pods -n splunk
 
 ## 4.2 Verify the Collector Logs
 
-Check both Collector components for startup errors.
-
-Agent:
+List the Collector pod names:
 
 ```bash
-kubectl logs -n splunk -l app=splunk-otel-collector-agent
+kubectl get pods -n splunk
 ```
 
-Cluster Receiver:
+Check an agent pod:
 
 ```bash
-kubectl logs -n splunk -l app=splunk-otel-collector-cluster-receiver
+kubectl logs -n splunk <agent-pod-name>
 ```
 
-Verify there are no authentication, exporter, or connection errors.
+Check the cluster receiver:
+
+```bash
+kubectl logs -n splunk <cluster-receiver-pod-name>
+```
+
+For a pod in `CrashLoopBackOff`, inspect the previous container logs:
+
+```bash
+kubectl logs -n splunk <pod-name> --previous
+```
+
+Also inspect Kubernetes events:
+
+```bash
+kubectl describe pod -n splunk <pod-name>
+```
 
 ---
 

@@ -1,3 +1,4 @@
+clusterName: <eks-cluster-name>
 cloudProvider: aws
 distribution: eks
 environment: development
@@ -16,3 +17,19 @@ splunkPlatform:
 
 autodetect:
   prometheus: true
+
+clusterReceiver:
+  config:
+    processors:
+      resourcedetection:
+        detectors:
+          - env
+          - system
+        override: true
+        timeout: 15s
+
+extraAttributes:
+  fromLabels:
+    - key: app
+    - key: component
+    - key: release
