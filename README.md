@@ -1,69 +1,126 @@
 # AWS EKS Observability Lab
 
+![AWS](https://img.shields.io/badge/AWS-EKS-orange)
+![Terraform](https://img.shields.io/badge/Terraform-IaC-623CE4)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-1.35-326CE5)
+![OpenTelemetry](https://img.shields.io/badge/OpenTelemetry-Enabled-6D28D9)
+![Splunk](https://img.shields.io/badge/Splunk-Observability-65A637)
+
 ## Overview
 
-This repository contains the Infrastructure-as-Code (IaC) used to build a repeatable Amazon Elastic Kubernetes Service (EKS) environment using Terraform.
+This repository contains the Infrastructure-as-Code (IaC), Kubernetes configuration, and deployment artifacts used to build a repeatable Amazon Elastic Kubernetes Service (EKS) observability lab.
 
-The goal of this project is to establish a reusable Kubernetes foundation that can be used for learning, experimentation, observability, and cloud-native application deployments.
+The lab provides a production-inspired environment for learning and experimenting with modern cloud-native observability using:
 
-The environment has been validated through multiple Terraform deployment and destruction cycles to ensure the infrastructure can be recreated consistently.
+- Amazon EKS
+- Terraform
+- OpenTelemetry
+- Splunk Observability Cloud
+- Splunk Cloud Platform
+- Kubernetes-native applications
+
+The infrastructure is designed to be fully reproducible through Terraform, allowing the entire environment to be created, validated, destroyed, and recreated with confidence.
+
+Beyond infrastructure provisioning, this repository serves as a hands-on deployment guide for installing and validating the complete observability stack, from the Kubernetes cluster through telemetry collection and application instrumentation.
 
 ---
 
-## Current Scope
+## Current Implementation
 
-The current implementation focuses on provisioning and managing the AWS infrastructure required for a Kubernetes platform.
+The current implementation provisions the AWS infrastructure, Kubernetes platform, and supporting components required to build a repeatable observability lab.
 
-### AWS Resources
+### AWS Infrastructure
 
-* Amazon VPC
-* Public Subnets across three Availability Zones
-* Internet Gateway
-* Route Tables and Associations
-* IAM Roles and Policies
-* Amazon EKS Cluster
-* Amazon EKS Managed Node Group
+The following AWS resources are provisioned and managed through Terraform:
 
-### EKS Add-ons
+- Amazon VPC
+- Public Subnets across three Availability Zones
+- Internet Gateway
+- Route Tables and Associations
+- IAM Roles and Policies
+- Amazon EKS Cluster
+- Amazon EKS Managed Node Group
 
-* VPC CNI
-* CoreDNS
-* Kube Proxy
-* Metrics Server
-* Kube State Metrics
-* EKS Pod Identity Agent
-* EKS Node Monitoring Agent
+### Amazon EKS Add-ons
+
+The following Kubernetes add-ons are installed automatically during cluster provisioning:
+
+- Amazon VPC CNI
+- CoreDNS
+- kube-proxy
+- Metrics Server
+- kube-state-metrics
+- EKS Pod Identity Agent
+- EKS Node Monitoring Agent
+
+### Observability Components
+
+The following observability components are deployed after the Kubernetes cluster is created:
+
+- Splunk OpenTelemetry Collector
+- Splunk Observability Cloud
+- Splunk Cloud Platform
+- Log Observer Connect
 
 ---
 
 ## Architecture
 
+### Infrastructure Architecture
+
 ```text
-AWS
-└── VPC
+AWS (us-east-2)
+│
+└── Amazon VPC
     ├── Public Subnet (us-east-2a)
     ├── Public Subnet (us-east-2b)
     ├── Public Subnet (us-east-2c)
     ├── Internet Gateway
     └── Amazon EKS
-        ├── Control Plane
+        ├── Managed Control Plane
         ├── Managed Node Group
         └── EKS Add-ons
+            ├── Amazon VPC CNI
+            ├── CoreDNS
+            ├── kube-proxy
+            ├── Metrics Server
+            ├── kube-state-metrics
+            ├── Pod Identity Agent
+            └── Node Monitoring Agent
 ```
 
----
+### Observability Architecture
 
-## Environment Details
+```text
+                          Applications
+                   (Astronomy Shop, AI App,
+                      KubeInvaders, etc.)
+                               │
+                               ▼
+                 OpenTelemetry Protocol (OTLP)
+                               │
+                               ▼
+                  Splunk OTel Collector Agent
+                     (DaemonSet on every node)
+                               │
+              ┌────────────────┴─────────────────┐
+              ▼                                  ▼
+     Splunk Observability Cloud         Splunk Cloud Platform
+     • Metrics                          • Container Logs
+     • Traces                           • Kubernetes Events
+     • Infrastructure                   • Kubernetes Objects
+              ▲                                  │
+              │                                  ▼
+              └──────── Log Observer Connect ────┘
 
-| Component                 | Value             |
-| ------------------------- | ----------------- |
-| Cloud Provider            | AWS               |
-| Region                    | us-east-2         |
-| Kubernetes Version        | 1.35              |
-| Node Type                 | t3.large          |
-| Node Count                | 2                 |
-| Operating System          | Amazon Linux 2023 |
-| Infrastructure Management | Terraform         |
+                 Cluster Receiver
+                 (Cluster-wide telemetry)
+                        │
+                        ├── Kubernetes Metrics
+                        ├── Kubernetes Metadata
+                        ├── Kubernetes Events
+                        └── Kubernetes Objects
+```
 
 ---
 
@@ -73,49 +130,152 @@ AWS
 .
 ├── README.md
 ├── .gitignore
-└── terraform/
-    ├── providers.tf
-    ├── variables.tf
-    ├── locals.tf
-    ├── vpc.tf
-    ├── iam.tf
-    ├── eks.tf
-    ├── addons.tf
-    ├── nodegroup.tf
-    └── outputs.tf
+├── terraform/
+│   ├── .terraform.lock.hcl
+│   ├── providers.tf
+│   ├── variables.tf
+│   ├── locals.tf
+│   ├── vpc.tf
+│   ├── iam.tf
+│   ├── eks.tf
+│   ├── addons.tf
+│   ├── nodegroup.tf
+│   └── outputs.tf
+│
+├── observability/
+│   └── splunk/
+│       ├── values/
+│       │   ├── values.yaml.example      # Template used to create the deployment configuration.
+│       │   ├── values.yaml              # Template used to create the deployment configuration (not committed).
+│       │   └── values-lab.yaml          # Fully documented reference with architecture and design decisions
+│       │
+│       └── vendor/
+│           ├── README.md
+│           └── splunk-otel-collector/   # Upstream chart v0.156.0 retained for reference  
+│               ├── charts/
+│               ├── ci/
+│               ├── scripts/
+│               ├── templates/
+│               ├── .helmignore
+│               ├── Chart.lock
+│               ├── Chart.yaml
+│               ├── OWNERS
+│               ├── RELEASE.md
+│               ├── values.schema.json
+│               └── values.yaml
+│
+└── applications/
+    ├── astronomy-shop/
+    ├── kubeinvaders/
+    └── agent-research-assistant/
+```
+
+### Repository Layout
+
+| Directory | Purpose |
+|----------|---------|
+| `terraform/` | Infrastructure-as-Code for the AWS networking, IAM, EKS cluster, managed node group, and Kubernetes add-ons. |
+| `observability/` | Configuration related to the Splunk OpenTelemetry Collector and observability platform. |
+| `applications/` | Kubernetes applications deployed into the lab to demonstrate observability and instrumentation. |
+
+---
+
+## Environment Details
+
+| Component                    | Value |
+|------------------------------|-------|
+| Cloud Provider               | AWS |
+| AWS Region                   | us-east-2 |
+| Kubernetes Distribution      | Amazon EKS |
+| Kubernetes Version           | 1.35 |
+| Worker Node Instance Type    | m6i.xlarge |
+| Initial Worker Node Count    | 2 |
+| Worker Node Operating System | Amazon Linux 2023 |
+| Infrastructure Management    | Terraform |
+| Package Manager              | Helm |
+| Observability Framework      | OpenTelemetry |
+| Collector                    | Splunk OpenTelemetry Collector |
+| Metrics & Traces Platform    | Splunk Observability Cloud |
+| Logs Platform                | Splunk Cloud Platform |
+
+---
+
+## Prerequisites
+
+Before deploying the lab, ensure the following software and accounts are available.
+
+| Requirement                | Purpose |
+|----------------------------|---------|
+| AWS Account                | Deploy the Amazon EKS infrastructure. |
+| AWS CLI                    | Authenticate and interact with AWS services. |
+| Terraform                  | Provision the AWS infrastructure. |
+| kubectl                    | Manage Kubernetes resources. |
+| Helm                       | Deploy the Splunk OpenTelemetry Collector Helm chart. |
+| Git                        | Clone the repository. |
+| Splunk Observability Cloud | Receive metrics and traces. |
+| Splunk Cloud Platform      | Receive logs, Kubernetes events, and Kubernetes objects. |
+
+### Verify Installed Software
+
+```bash
+aws --version
+terraform version
+kubectl version --client
+helm version
+git --version
+```
+
+### AWS Authentication
+
+Verify your AWS credentials are configured.
+
+```bash
+aws sts get-caller-identity
 ```
 
 ---
 
-## Deployment
+# Phase 1 - Deploy AWS Infrastructure
 
-Initialize Terraform:
+Initialize the Terraform working directory.
 
 ```bash
 terraform init
 ```
 
-Validate Configuration:
+Validate the Terraform configuration.
 
 ```bash
 terraform validate
 ```
 
-Review Planned Changes:
+Review the execution plan.
 
 ```bash
-terraform plan
+terraform plan -out=tfplan
 ```
 
-Deploy Infrastructure:
+Deploy the infrastructure.
 
 ```bash
-terraform apply
+terraform apply tfplan
+```
+
+Verify the EKS cluster was created successfully.
+
+```bash
+aws eks list-clusters
 ```
 
 ---
 
-## Configure kubectl
+# Phase 2 - Configure Kubernetes Access
+
+After the Amazon EKS cluster has been successfully deployed, configure your local Kubernetes client (`kubectl`) to communicate with the cluster.
+
+## 2.1 Update the Kubernetes Configuration
+
+Configure your local kubeconfig to access the Amazon EKS cluster.
 
 ```bash
 aws eks update-kubeconfig \
@@ -125,63 +285,411 @@ aws eks update-kubeconfig \
 
 ---
 
-## Verification
+## 2.2 Verify the Current Context
 
-Verify worker nodes:
+Confirm that `kubectl` is using the correct Kubernetes context.
+
+```bash
+kubectl config current-context
+```
+
+---
+
+## 2.3 Verify Cluster Connectivity
+
+Verify that the Kubernetes API server is reachable.
+
+```bash
+kubectl cluster-info
+```
+
+---
+
+## 2.5 Verify the Worker Nodes
+
+Confirm that the managed node group is healthy and all worker nodes are in the `Ready` state.
+
+```bash
+kubectl get nodes
+```
 
 ```bash
 kubectl get nodes -o wide
 ```
 
-Verify cluster add-ons:
+---
+
+## 2.6 Verify the Kubernetes System Pods
+
+Confirm that the core Amazon EKS components are running successfully.
 
 ```bash
 kubectl get pods -A
 ```
 
-Verify Metrics Server:
+```bash
+kubectl get pods -A -o wide
+```
+
+Verify that pods such as the following are in the `Running` state:
+
+- CoreDNS
+- kube-proxy
+- Amazon VPC CNI
+- EKS Pod Identity Agent
+- kube-state-metrics
+- EKS Node Monitoring Agent
+
+---
+
+## 2.7 Verify Metrics Server:
 
 ```bash
 kubectl top nodes
 ```
 
-Verify Terraform state:
+## 2.8 Create the Splunk Namespace
+
+Create a dedicated namespace for the Splunk OpenTelemetry Collector.
 
 ```bash
-terraform plan
+kubectl create namespace splunk
 ```
 
-Expected result:
+Verify the namespace was created successfully.
 
-```text
-No changes. Your infrastructure matches the configuration.
+```bash
+kubectl get namespaces
 ```
 
 ---
 
-## Destroy Environment
+# Phase 3 - Deploy the Splunk OpenTelemetry Collector
+
+This phase deploys the Splunk OpenTelemetry Collector using the official Helm chart. The Collector is responsible for collecting Kubernetes, infrastructure, application, and OpenTelemetry telemetry and exporting it to Splunk Observability Cloud and Splunk Cloud Platform.
+
+## 3.1 Verify the Helm Repository
+
+Confirm that the Splunk Helm repository has been added and update it to retrieve the latest chart metadata.
+
+```bash
+helm repo list
+```
+
+If the Splunk repository has not been added, run:
+
+```bash
+helm repo add splunk-otel-collector-chart https://signalfx.github.io/splunk-otel-collector-chart
+```
+
+Update the repository:
+
+```bash
+helm repo update
+```
+
+---
+
+## 3.2 Create the Kubernetes Secret
+
+The Splunk OpenTelemetry Collector requires a Kubernetes Secret containing:
+
+- Splunk Observability Cloud ingest token
+- Splunk Cloud Platform HEC token
+
+This Secret must be recreated whenever the EKS cluster is rebuilt.
+
+### Load the Tokens
+
+Load both tokens into temporary shell variables.
+
+```bash
+read -s "SPLUNK_O11Y_TOKEN?Paste Splunk Observability Cloud ingest token: "
+echo
+
+read -s "SPLUNK_HEC_TOKEN?Paste Splunk Cloud Platform HEC token: "
+echo
+```
+
+Verify both variables were loaded.
+
+```bash
+if [[ -n "$SPLUNK_O11Y_TOKEN" && -n "$SPLUNK_HEC_TOKEN" ]]; then
+  echo "Both Splunk tokens are loaded"
+else
+  echo "One or both Splunk tokens are missing"
+fi
+```
+
+### Create or Update the Secret
+
+```bash
+kubectl create secret generic splunk-otel-secret \
+  --namespace splunk \
+  --from-literal=splunk_observability_access_token="$SPLUNK_O11Y_TOKEN" \
+  --from-literal=splunk_platform_hec_token="$SPLUNK_HEC_TOKEN" \
+  --dry-run=client \
+  -o yaml | kubectl apply -f -
+```
+
+Verify the Secret was created successfully.
+
+```bash
+kubectl get secret splunk-otel-secret -n splunk
+```
+
+Expected output:
+
+```text
+NAME                  TYPE     DATA   AGE
+splunk-otel-secret    Opaque   2      10s
+```
+
+(Optional) Remove the temporary shell variables.
+
+```bash
+unset SPLUNK_O11Y_TOKEN
+unset SPLUNK_HEC_TOKEN
+```
+
+> **Note**
+>
+> The access tokens are stored in the Kubernetes Secret and are intentionally **not** committed to source control.
+
+---
+
+## 3.3 Review the Helm Values
+
+The repository includes two Helm values files.
+
+| File | Purpose |
+|------|---------|
+| `values.yaml.example` | Minimal deployment overrides used during installation. |
+| `values-lab.yaml` | Fully documented reference explaining each configuration decision and architecture. |
+
+Deployments in this guide use:
+
+```text
+observability/splunk/values/values.yaml
+```
+
+---
+
+## 3.4 Validate the Helm Chart
+
+Render the Kubernetes manifests locally before deploying.
+
+```bash
+helm template splunk-otel-collector \
+  splunk-otel-collector-chart/splunk-otel-collector \
+  --namespace splunk \
+  -f observability/splunk/values/values.yaml
+```
+
+Review the rendered manifests for any configuration issues.
+
+---
+
+## 3.5 Deploy the Collector
+
+Install the Splunk OpenTelemetry Collector.
+
+```bash
+helm install splunk-otel-collector \
+  splunk-otel-collector-chart/splunk-otel-collector \
+  --namespace splunk \
+  -f observability/splunk/values/values.yaml
+```
+
+---
+
+## 3.6 Verify the Helm Release
+
+Confirm that the Helm release was installed successfully.
+
+```bash
+helm list -n splunk
+```
+
+---
+
+# Phase 4 - Verify Telemetry
+
+After the Splunk OpenTelemetry Collector has been deployed successfully, verify that telemetry is flowing from the Amazon EKS cluster to Splunk Observability Cloud and Splunk Cloud Platform.
+
+---
+
+## 4.1 Verify the Collector is Running
+
+Confirm that both Collector components are healthy.
+
+```bash
+kubectl get pods -n splunk
+```
+
+---
+
+## 4.2 Verify the Collector Logs
+
+Check both Collector components for startup errors.
+
+Agent:
+
+```bash
+kubectl logs -n splunk -l app=splunk-otel-collector-agent
+```
+
+Cluster Receiver:
+
+```bash
+kubectl logs -n splunk -l app=splunk-otel-collector-cluster-receiver
+```
+
+Verify there are no authentication, exporter, or connection errors.
+
+---
+
+## 4.3 Verify Infrastructure Metrics
+
+In Splunk Observability Cloud, verify that:
+
+- Kubernetes cluster appears
+- Worker nodes are reporting
+- CPU metrics are present
+- Memory metrics are present
+- Disk metrics are present
+- Network metrics are present
+
+---
+
+## 4.4 Verify Kubernetes Metrics
+
+Open **Kubernetes Navigator** and verify:
+
+- Cluster
+- Nodes
+- Namespaces
+- Pods
+- Containers
+
+are being discovered.
+
+---
+
+## 4.5 Verify Logs
+
+In Splunk Cloud Platform, search the configured index.
+
+Example SPL:
+
+```spl
+index=<splunk-index>
+```
+
+Verify that:
+
+- Container logs
+- Kubernetes events
+- Kubernetes objects
+
+are being ingested.
+
+---
+
+## 4.6 Verify Log Observer Connect
+
+From Splunk Observability Cloud:
+
+- Open Infrastructure Navigator.
+- Select a Kubernetes node or pod.
+- Open the **Logs** tab.
+
+Verify that Log Observer Connect opens the related logs in Splunk Cloud Platform.
+
+---
+
+## 4.7 Verify Kubernetes Events
+
+Generate a Kubernetes event.
+
+For example:
+
+```bash
+kubectl rollout restart deployment coredns -n kube-system
+```
+
+Verify that the rollout event appears in Splunk Cloud Platform.
+
+---
+
+## 4.8 Verify End-to-End Telemetry
+
+Confirm that:
+
+- Infrastructure metrics are visible.
+- Kubernetes metrics are visible.
+- Logs are searchable.
+- Kubernetes events are searchable.
+- Kubernetes objects are indexed.
+- Metrics and logs are correlated through Log Observer Connect.
+
+At this point, the observability platform is fully operational and ready for application deployments.
+
+---
+
+# Phase 5 - Destroy the Lab
+
+When you have finished using the lab, destroy all AWS resources to avoid unnecessary charges.
+
+## Destroy the Infrastructure
 
 ```bash
 terraform destroy
 ```
 
----
+After the destroy completes, verify that the Amazon EKS cluster and associated AWS resources have been removed.
 
-## Future Enhancements
-
-Planned future phases include:
-
-* KubeInvaders deployment
-* Splunk OpenTelemetry Collector
-* Splunk Observability Cloud integration
-* Application instrumentation
-* Kubernetes observability dashboards
-* CI/CD automation
+> **Note**
+>
+> Destroying the EKS cluster also removes all Kubernetes resources, including the Splunk OpenTelemetry Collector deployment and Kubernetes Secrets. The next deployment will require recreating the Splunk Kubernetes Secret before installing the Collector.
 
 ---
 
-## Author
+# Phase 6
+Deploy Astronomy Shop
 
-Ramalo Singh
+# Phase 7
+Deploy AI Application
 
-AWS | Kubernetes | Terraform | Observability
+# Phase 8
+Deploy KubeInvaders
+
+# Phase 9
+Dashboards
+
+# Phase 10
+Detectors
+
+---
+
+# Future Enhancements
+
+The following capabilities are planned for future phases of this lab:
+
+- Deploy the OpenTelemetry Astronomy Shop demo application.
+- Deploy KubeInvaders to generate controlled Kubernetes chaos events.
+- Deploy the AI application with OpenTelemetry instrumentation.
+- Build custom dashboards in Splunk Observability Cloud.
+- Create detectors and alerts for infrastructure and application health.
+
+---
+
+---
+
+# Author
+
+**Ramalo Singh**
+
+Technical Leader specializing in Cloud Observability, OpenTelemetry, Kubernetes, Terraform, and Splunk Observability solutions.
+
+---

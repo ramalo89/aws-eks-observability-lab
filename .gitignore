@@ -103,4 +103,10 @@ docs/
 # Apps
 #########################################
 
-apps/
+applications/
+
+#########################################
+# Splunk Values File
+#########################################
+
+observability/splunk/values/values.yaml

@@ -1,0 +1,18 @@
+cloudProvider: aws
+distribution: eks
+environment: development
+
+splunkObservability:
+  realm: us1
+
+secret:
+  create: false
+  name: splunk-otel-secret
+  validateSecret: true
+
+splunkPlatform:
+  endpoint: "https://http-inputs-<splunk-stack>.splunkcloud.com/services/collector/event"
+  index: "<splunk-index>"
+
+autodetect:
+  prometheus: true
