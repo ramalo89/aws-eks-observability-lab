@@ -475,7 +475,7 @@ observability/splunk/values/values.yaml
 
 ---
 
-## 3.4 Validate the Helm Chart
+## 3.4 Validate the Helm Chart - Optional - Show me what you would install.
 
 Render the Kubernetes manifests locally before deploying.
 
@@ -483,6 +483,7 @@ Render the Kubernetes manifests locally before deploying.
 helm template splunk-otel-collector \
   splunk-otel-collector-chart/splunk-otel-collector \
   --namespace splunk \
+  --version 0.156.0 \
   -f observability/splunk/values/values.yaml
 ```
 
