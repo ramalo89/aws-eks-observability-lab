@@ -164,9 +164,11 @@ AWS (us-east-2)
 │               └── values.yaml
 │
 └── applications/
-    ├── astronomy-shop/
-    ├── kubeinvaders/
-    └── agentic-ai-application/
+    └── astronomy-shop/
+        ├── values/
+        │   ├── values.yaml
+        │   └── values-reference.yaml
+        └── CHART-README.md
 ```
 
 ### Repository Layout
@@ -372,6 +374,7 @@ kubectl get deployment \
   -n splunk \
   -o jsonpath='{.spec.template.spec.serviceAccountName}{"\n"}'
 ```
+
 Expected output:
 splunk-otel-collector
 
@@ -450,7 +453,7 @@ kubectl create secret generic splunk-otel-secret \
 Verify the Secret was created successfully.
 
 ```bash
-kubectl get secret splunk-otel-secret -n splunk
+kubectl get secret -n splunk splunk-otel-secret 
 ```
 
 Expected output:
@@ -478,7 +481,7 @@ The repository includes two Helm values files.
 | File | Purpose |
 |------|---------|
 | `values.yaml.example` | Minimal deployment overrides used during installation. |
-| `values-lab.yaml` | Fully documented reference explaining each configuration decision and architecture. |
+| `values-lab.yaml`     | Fully documented reference explaining each configuration decision and architecture. |
 
 Deployments in this guide use:
 
@@ -687,6 +690,103 @@ After the destroy completes, verify that the Amazon EKS cluster and associated A
 
 ## Phase 6
 Deploy Astronomy Shop
+
+```bash
+helm repo add open-telemetry \
+  https://open-telemetry.github.io/opentelemetry-helm-charts
+```
+
+```bash
+helm repo update
+```
+
+```bash
+helm repo list
+```
+
+```bash
+kubectl create namespace astronomy-shop
+```
+
+```bash
+helm install astronomy-shop \
+  open-telemetry/opentelemetry-demo \
+  --namespace astronomy-shop \
+  --version 0.40.10 \
+  --values values/values.yaml
+```
+
+```bash
+helm list -n astronomy-shop
+```
+
+```bash
+kubectl get pods -n astronomy-shop
+```
+
+```bash
+kubectl get deployments -n astronomy-shop
+```
+
+```bash
+kubectl get statefulsets -n astronomy-shop
+```
+
+```bash
+kubectl get services -n astronomy-shop
+```
+
+```bash
+kubectl get pods -n astronomy-shop -w
+```
+
+```bash
+kubectl get deployment otel-collector \
+  -n astronomy-shop
+```
+
+```bash
+kubectl logs \
+  deployment/otel-collector \
+  -n astronomy-shop \
+  --tail=100
+```
+
+```bash
+kubectl logs \
+  deployment/otel-collector \
+  -n astronomy-shop \
+  --tail=300 \
+  | grep -iE 'error|failed|retry|refused|unavailable'
+```
+
+```bash
+kubectl exec \
+  deployment/otel-collector \
+  -n astronomy-shop \
+  -- sh -c \
+  'getent hosts splunk-otel-collector-agent.splunk.svc.cluster.local'
+```
+
+```bash
+kubectl get service frontend-proxy \
+  -n astronomy-shop
+```
+
+```bash
+kubectl port-forward \
+  service/frontend-proxy \
+  8080:8080 \
+  -n astronomy-shop
+```
+
+```bash
+http://localhost:8080
+http://localhost:8080/jaeger/ui/
+http://localhost:8080/grafana/
+http://localhost:8080/loadgen/
+http://localhost:8080/feature/
+```
 
 ---
 

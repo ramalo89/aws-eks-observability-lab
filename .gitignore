@@ -103,7 +103,9 @@ docs/
 # Apps
 #########################################
 
-applications/
+applications/kubeinvaders/
+applications/astronomy-shop/values/astronomy-shop-default.yaml
+applications/astronomy-shop/values/astronomy-shop-custom.yaml
 
 #########################################
 # Splunk Values File
