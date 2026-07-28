@@ -366,22 +366,6 @@ Verify the namespace was created successfully.
 kubectl get namespaces
 ```
 
-### 2.9 Verify Service Account
-
-```bash
-kubectl get deployment \
-  splunk-otel-collector-k8s-cluster-receiver \
-  -n splunk \
-  -o jsonpath='{.spec.template.spec.serviceAccountName}{"\n"}'
-```
-
-Expected output:
-splunk-otel-collector
-
-> **Note**
->
-> The `splunk-otel-collector` Kubernetes service account is associated with an AWS EKS Pod Identity that is provisioned by Terraform. This allows the Collector to automatically retrieve temporary AWS credentials for Kubernetes resource enrichment without requiring static credentials or IAM Roles for Service Accounts (IRSA).
-
 ---
 
 ## Phase 3 - Deploy the Splunk OpenTelemetry Collector
@@ -527,6 +511,22 @@ helm status splunk-otel-collector -n splunk
 helm list -n splunk
 ```
 
+### 3.7 Verify Service Account
+
+```bash
+kubectl get deployment \
+  splunk-otel-collector-k8s-cluster-receiver \
+  -n splunk \
+  -o jsonpath='{.spec.template.spec.serviceAccountName}{"\n"}'
+```
+
+Expected output:
+splunk-otel-collector
+
+> **Note**
+>
+> The `splunk-otel-collector` Kubernetes service account is associated with an AWS EKS Pod Identity that is provisioned by Terraform. This allows the Collector to automatically retrieve temporary AWS credentials for Kubernetes resource enrichment without requiring static credentials or IAM Roles for Service Accounts (IRSA).
+
 #### Apply Future Configuration Changes - Optional - Only when you make changes to values.yaml
 
 After changing `values.yaml` on an existing installation, apply the updated configuration:
@@ -553,6 +553,12 @@ Confirm that both Collector components are healthy. List the Collector pod names
 kubectl get pods -n splunk
 ```
 
+Also inspect Kubernetes events:
+
+```bash
+kubectl describe pod -n splunk <pod-name>
+```
+
 ### 4.2 Verify the Collector Logs
 
 List the Collector pod names and Check an agent pod:
@@ -571,12 +577,6 @@ Optional: For a pod in `CrashLoopBackOff`, inspect the previous container logs:
 
 ```bash
 kubectl logs -n splunk <pod-name> --previous
-```
-
-Also inspect Kubernetes events:
-
-```bash
-kubectl describe pod -n splunk <pod-name>
 ```
 
 ### 4.3 Verify Infrastructure Metrics
@@ -670,7 +670,146 @@ At this point, the observability platform is fully operational and ready for app
 
 ---
 
-## Phase 5 - Destroy the Lab
+## Phase 5
+Deploy Astronomy Shop
+
+Add the OpenTelemetry Helm repository.
+
+```bash
+helm repo add open-telemetry \
+  https://open-telemetry.github.io/opentelemetry-helm-charts
+```
+
+Update the local Helm repository cache.
+
+```bash
+helm repo update
+```
+
+Verify the OpenTelemetry Helm repository is available.
+
+```bash
+helm repo list
+```
+
+Create the Astronomy Shop namespace.
+
+```bash
+kubectl create namespace astronomy-shop
+```
+
+Deploy the OpenTelemetry Astronomy Shop application.
+
+```bash
+helm install astronomy-shop \
+  open-telemetry/opentelemetry-demo \
+  --namespace astronomy-shop \
+  --version 0.40.10 \
+  --values applications/astronomy-shop/values/values.yaml
+```
+
+Verify the Helm release was successfully installed.
+
+```bash
+helm list -n astronomy-shop
+```
+
+Verify all application pods are running.
+
+```bash
+kubectl get pods -n astronomy-shop
+```
+
+Monitor the pods until they reach the **Running** state.
+
+```bash
+kubectl get pods -n astronomy-shop -w
+```
+
+Show every Deployment in the `astronomy-shop` namespace.
+
+```bash
+kubectl get deployments -n astronomy-shop
+```
+
+Show every StatefulSet in the `astronomy-shop` namespace.
+
+```bash
+kubectl get statefulsets -n astronomy-shop
+```
+
+Show every Service in the `astronomy-shop` namespace.
+
+```bash
+kubectl get services -n astronomy-shop
+```
+
+Verify the OpenTelemetry Collector Deployment is running.
+
+```bash
+kubectl get deployment otel-collector \
+  -n astronomy-shop
+```
+
+```bash
+kubectl describe pod <pod-name> -n astronomy-shop
+```
+
+View the most recent OpenTelemetry Collector log messages.
+
+```bash
+kubectl logs \
+  deployment/otel-collector \
+  -n astronomy-shop \
+  --tail=100
+```
+
+Describe the OpenTelemetry Collector Deployment.
+
+```bash
+kubectl describe deployment otel-collector \
+  -n astronomy-shop
+```
+
+Search the Collector logs for common errors and connection issues. No errors is a good thing.
+
+```bash
+kubectl logs \
+  deployment/otel-collector \
+  -n astronomy-shop \
+  --tail=300 \
+  | grep -iE 'error|failed|retry|refused|unavailable'
+```
+
+Verify the frontend service exists.
+
+```bash
+kubectl get service frontend-proxy \
+  -n astronomy-shop
+```
+
+Create a local connection to the Astronomy Shop frontend via a different terminal.
+
+```bash
+kubectl port-forward \
+  service/frontend-proxy \
+  8080:8080 \
+  -n astronomy-shop
+```
+
+Open the Astronomy Shop user interfaces.
+
+```text
+http://localhost:8080
+http://localhost:8080/jaeger/ui/
+http://localhost:8080/grafana/
+http://localhost:8080/loadgen/
+http://localhost:8080/feature/
+```
+
+---
+
+## Phase 6 - Destroy the Lab
 
 When you have finished using the lab, destroy all AWS resources to avoid unnecessary charges.
 
@@ -685,108 +824,6 @@ After the destroy completes, verify that the Amazon EKS cluster and associated A
 > **Note**
 >
 > Destroying the EKS cluster also removes all Kubernetes resources, including the Splunk OpenTelemetry Collector deployment and Kubernetes Secrets. The next deployment will require recreating the Splunk Kubernetes Secret before installing the Collector.
-
----
-
-## Phase 6
-Deploy Astronomy Shop
-
-```bash
-helm repo add open-telemetry \
-  https://open-telemetry.github.io/opentelemetry-helm-charts
-```
-
-```bash
-helm repo update
-```
-
-```bash
-helm repo list
-```
-
-```bash
-kubectl create namespace astronomy-shop
-```
-
-```bash
-helm install astronomy-shop \
-  open-telemetry/opentelemetry-demo \
-  --namespace astronomy-shop \
-  --version 0.40.10 \
-  --values values/values.yaml
-```
-
-```bash
-helm list -n astronomy-shop
-```
-
-```bash
-kubectl get pods -n astronomy-shop
-```
-
-```bash
-kubectl get deployments -n astronomy-shop
-```
-
-```bash
-kubectl get statefulsets -n astronomy-shop
-```
-
-```bash
-kubectl get services -n astronomy-shop
-```
-
-```bash
-kubectl get pods -n astronomy-shop -w
-```
-
-```bash
-kubectl get deployment otel-collector \
-  -n astronomy-shop
-```
-
-```bash
-kubectl logs \
-  deployment/otel-collector \
-  -n astronomy-shop \
-  --tail=100
-```
-
-```bash
-kubectl logs \
-  deployment/otel-collector \
-  -n astronomy-shop \
-  --tail=300 \
-  | grep -iE 'error|failed|retry|refused|unavailable'
-```
-
-```bash
-kubectl exec \
-  deployment/otel-collector \
-  -n astronomy-shop \
-  -- sh -c \
-  'getent hosts splunk-otel-collector-agent.splunk.svc.cluster.local'
-```
-
-```bash
-kubectl get service frontend-proxy \
-  -n astronomy-shop
-```
-
-```bash
-kubectl port-forward \
-  service/frontend-proxy \
-  8080:8080 \
-  -n astronomy-shop
-```
-
-```bash
-http://localhost:8080
-http://localhost:8080/jaeger/ui/
-http://localhost:8080/grafana/
-http://localhost:8080/loadgen/
-http://localhost:8080/feature/
-```
 
 ---
 
