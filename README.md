@@ -166,8 +166,9 @@ AWS (us-east-2)
 └── applications/
     └── astronomy-shop/
         ├── values/
-        │   ├── values.yaml
-        │   └── values-reference.yaml
+        │   ├── values.yaml              # Template used to create the deployment configuration.
+        │   ├── values-lab.yaml          # Template used to create the deployment configuration with design\override decisions
+        │   └── values-reference.yaml    # Upstream chart retained for reference 
         └── CHART-README.md
 ```
 
