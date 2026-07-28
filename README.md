@@ -138,7 +138,8 @@ AWS (us-east-2)
 │   ├── eks.tf
 │   ├── addons.tf
 │   ├── nodegroup.tf
-│   └── outputs.tf
+│   ├── outputs.tf
+│   └── splunk-pod-identity.tf
 │
 ├── observability/
 │   └── splunk/
@@ -165,7 +166,7 @@ AWS (us-east-2)
 └── applications/
     ├── astronomy-shop/
     ├── kubeinvaders/
-    └── agent-research-assistant/
+    └── agentic-ai-application/
 ```
 
 ### Repository Layout
@@ -225,11 +226,24 @@ git --version
 
 ### AWS Authentication
 
+Authenticate to AWS before deploying:
+
+```bash
+aws configure
+```
+
 Verify your AWS credentials are configured.
 
 ```bash
 aws sts get-caller-identity
 ```
+
+Before deploying using terraform. Update a few variables (variables.tf file) for your ENV:
+aws_region
+cluster_name
+environment
+project_name
+owner
 
 ---
 
@@ -250,13 +264,13 @@ terraform validate
 Review the execution plan.
 
 ```bash
-terraform plan -out=tfplan
+terraform plan
 ```
 
 Deploy the infrastructure.
 
 ```bash
-terraform apply tfplan
+terraform apply
 ```
 
 Verify the EKS cluster was created successfully.
@@ -336,7 +350,21 @@ Verify that pods such as the following are in the `Running` state:
 kubectl top nodes
 ```
 
-### 2.8 Verify Service Account
+### 2.8 Create the Splunk Namespace
+
+Create a dedicated namespace for the Splunk OpenTelemetry Collector.
+
+```bash
+kubectl create namespace splunk
+```
+
+Verify the namespace was created successfully.
+
+```bash
+kubectl get namespaces
+```
+
+### 2.9 Verify Service Account
 
 ```bash
 kubectl get deployment \
@@ -350,20 +378,6 @@ splunk-otel-collector
 > **Note**
 >
 > The `splunk-otel-collector` Kubernetes service account is associated with an AWS EKS Pod Identity that is provisioned by Terraform. This allows the Collector to automatically retrieve temporary AWS credentials for Kubernetes resource enrichment without requiring static credentials or IAM Roles for Service Accounts (IRSA).
-
-### 2.9 Create the Splunk Namespace
-
-Create a dedicated namespace for the Splunk OpenTelemetry Collector.
-
-```bash
-kubectl create namespace splunk
-```
-
-Verify the namespace was created successfully.
-
-```bash
-kubectl get namespaces
-```
 
 ---
 
