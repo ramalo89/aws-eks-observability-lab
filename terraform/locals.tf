@@ -67,4 +67,17 @@ locals {
     ResourceType = "iam-role"
     RoleType     = "vpc-cni"
   })
+
+  splunk_otel_collector_role_tags = merge(local.common_tags, {
+    Name         = "ramalo-observability-lab-splunk-otel-collector-role"
+    Platform     = "iam"
+    ResourceType = "iam-role"
+    RoleType     = "eks-pod-identity"
+  })
+
+  splunk_otel_collector_pod_identity_tags = merge(local.common_tags, {
+    Name         = "ramalo-observability-lab-splunk-otel-collector"
+    Platform     = "eks"
+    ResourceType = "eks-pod-identity-association"
+  })
 }

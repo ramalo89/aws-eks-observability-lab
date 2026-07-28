@@ -107,63 +107,36 @@ secret:
 # Section 3: Cluster Receiver and Prometheus Autodiscovery
 ###############################################################################
 #
-# We use the chart's default Cluster Receiver configuration with one
-# intentional override.
+# We intentionally retain the upstream Cluster Receiver configuration.
 #
-# Defaults retained:
-# - The Helm chart deploys a single Cluster Receiver replica.
-# - Default CPU and memory limits are sufficient for this EKS lab.
-# - Default scheduling (nodeSelector, tolerations, affinity) is appropriate
-#   for a single-node-group cluster.
-# - The Cluster Receiver does not require host networking for this standard
-#   Amazon EKS deployment.
+# The Cluster Receiver is deployed as a single replica and collects
+# cluster-wide Kubernetes telemetry including metrics, metadata, objects,
+# events, and Kubernetes API server metrics.
 #
-# Resource Detection Override
-# ---------------------------
-# The chart enables the EKS resource detector by default. That detector attempts
-# to retrieve EC2 instance metadata (IMDS) and call the EC2 DescribeInstances
-# API to enrich telemetry with AWS infrastructure attributes.
+# Reasons for retaining the upstream defaults:
 #
-# In this lab, the Cluster Receiver does not have access to EC2 instance
-# metadata or an IAM role for these API calls, causing the Collector to fail
-# during startup with errors similar to:
-#
-#   failed to get instance metadata
-#   no EC2 IMDS role found
-#
-# Since clusterName is configured explicitly below, the EKS detector is not
-# required for cluster identification. We therefore override only the
-# resourcedetection processor to keep the env and system detectors while
-# disabling the EKS detector.
+# - The default single replica is sufficient for this lab.
+# - The default CPU and memory limits provide an appropriate starting point.
+# - Default scheduling (nodeSelector, tolerations, and affinity) is suitable
+#   for the single managed node group.
+# - Host networking is not required for this Amazon EKS deployment.
+# - The chart's default resource detection configuration is retained. AWS
+#   resource enrichment is enabled through Amazon EKS Pod Identity, which is
+#   provisioned by Terraform before the Collector is installed.
 #
 # Telemetry flow:
-# - The Cluster Receiver collects cluster-wide Kubernetes metrics, metadata,
-#   objects, and events from the Kubernetes API.
-# - The chart enables its EKS API server metrics feature by default. Those
-#   metrics are collected by the Cluster Receiver using the shared control-plane
-#   scrape interval and exported to Splunk Observability Cloud.
-# - Kubernetes object snapshots for Pods, NetworkPolicies, and
-#   CustomResourceDefinitions are collected every six hours by default and
-#   exported to Splunk Cloud Platform.
-# - Cluster metrics and metadata are sent directly to Splunk Observability
-#   Cloud.
-# - Kubernetes events are exported to Splunk Cloud Platform.
-# - The Agent DaemonSet separately collects node metrics and container logs.
-# - Log Observer Connect correlates indexed logs with metrics and traces.
 #
-# Temporary workaround during lab validation.
-# The EKS resource detector attempted to retrieve EC2 metadata but no AWS
-# workload identity (EKS Pod Identity/IRSA) had been configured yet.
-# This override was used only to validate the Collector deployment.
-clusterReceiver:
-  config:
-    processors:
-      resourcedetection:
-        detectors:
-          - env
-          - system
-        override: true
-        timeout: 15s
+# - Cluster metrics and Kubernetes metadata are exported to Splunk
+#   Observability Cloud.
+# - Kubernetes API server metrics are collected by the Cluster Receiver and
+#   exported to Splunk Observability Cloud.
+# - Kubernetes objects (Pods, NetworkPolicies, and
+#   CustomResourceDefinitions) are exported to Splunk Cloud Platform.
+# - Kubernetes events are exported to Splunk Cloud Platform.
+# - The Agent DaemonSet collects node metrics, kubelet metrics, host metrics,
+#   and container logs.
+# - Log Observer Connect correlates indexed logs with infrastructure metrics
+#   and traces.
 #
 ###############################################################################
 #
