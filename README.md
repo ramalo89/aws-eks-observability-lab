@@ -807,6 +807,38 @@ http://localhost:8080/loadgen/
 http://localhost:8080/feature/
 ```
 
+### OpenTelemetry Astronomy Shop Application Architecture
+> **Architecture Note**
+>
+> The OpenTelemetry Astronomy Shop application uses a dedicated OpenTelemetry Collector (`otel-collector`) within the `astronomy-shop` namespace. Application services send their telemetry to this local Collector, which preserves the demo's built-in functionality (such as Jaeger, Grafana, OpenSearch, and span metrics) while forwarding a copy of the telemetry to the central Splunk OpenTelemetry Collector in the `splunk` namespace. The Splunk Collector then processes and exports the telemetry to Splunk Observability Cloud.
+
+> The OpenTelemetry Demo application emits Kubernetes metadata such as k8s.container.name, but it does not include a service.name field in the log events sent to Splunk Cloud Platform. Since the container names match the OpenTelemetry service names (for example, ad, accounting, and frontend), creating a field alias from k8s.container.name to service.name enables Splunk Observability Cloud to correlate logs with APM services without modifying or rebuilding the application images.
+
+>
+> ```text
+>Astronomy Shop Services
+>        │
+>        ▼
+>Application Logs
+>        │
+>        ▼
+>Astronomy Shop otel-collector
+>        │
+>        ▼
+>Splunk otel-collector-agent
+>        │
+>        ▼
+>Splunk Cloud Platform
+>        │
+>        │  Field Alias:
+>        │  k8s.container.name → service.name
+>        ▼
+>Splunk Observability Cloud
+>        │
+>        ▼
+>APM ↔ Logs Correlation
+> ```
+
 ---
 
 ## Phase 6 - Destroy the Lab

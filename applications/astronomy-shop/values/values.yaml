@@ -11,6 +11,11 @@
 #
 ###############################################################################
 
+default:
+  envOverrides:
+    - name: OTEL_RESOURCE_ATTRIBUTES_EXTRA
+      value: deployment.environment=lab
+
 opentelemetry-collector:
   mode: deployment
 
