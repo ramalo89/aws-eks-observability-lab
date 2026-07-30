@@ -870,7 +870,6 @@ Deploy AI Application
 
 This would be useful near the beginning of Phase 8:
 
-```markdown
 ### KubeInvaders Manifest Structure
 
 | Manifest | Purpose |
