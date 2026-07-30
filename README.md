@@ -841,30 +841,12 @@ http://localhost:8080/feature/
 
 ---
 
-## Phase 6 - Destroy the Lab
-
-When you have finished using the lab, destroy all AWS resources to avoid unnecessary charges.
-
-### Destroy the Infrastructure
-
-```bash
-terraform destroy
-```
-
-After the destroy completes, verify that the Amazon EKS cluster and associated AWS resources have been removed.
-
-> **Note**
->
-> Destroying the EKS cluster also removes all Kubernetes resources, including the Splunk OpenTelemetry Collector deployment and Kubernetes Secrets. The next deployment will require recreating the Splunk Kubernetes Secret before installing the Collector.
-
----
-
-## Phase 7 - AI Application
+## Phase 6 - AI Application
 Deploy AI Application
 
 ---
 
-## Phase 8 - Deploy KubeInvaders
+## Phase 7 - Deploy KubeInvaders
 
 ### KubeInvaders Manifest Structure
 
@@ -912,7 +894,7 @@ In this lab:
 > Deploy it only in a lab or other approved non-production environment.
 ```
 
-### 8.1 Verify the Kubernetes Context
+### 7.1 Verify the Kubernetes Context
 
 Before deploying, verify that `kubectl` is connected to the intended EKS
 cluster.
@@ -931,12 +913,12 @@ Verify that the target application namespace exists:
 kubectl get namespace astronomy-shop
 ```
 
-### 8.2 Create the Manifest Directory
+### 7.2 Create the Manifest Directory
 ```bash
 mkdir -p applications/kubeinvaders/manifests
 ```
 
-### 8.3 Create the KubeInvaders Namespace: namespace.yaml
+### 7.3 Create the KubeInvaders Namespace: namespace.yaml
 The `namespace.yaml` manifest creates an isolated namespace for the
 KubeInvaders application and its Programming Mode Jobs.
 
@@ -958,7 +940,7 @@ Verify namespace.yaml manifest created:
 kubectl get namespace kubeinvaders
 ```
 
-### 8.4 Create the KubeInvaders ServiceAccount: serviceaccount.yaml
+### 7.4 Create the KubeInvaders ServiceAccount: serviceaccount.yaml
 The `serviceaccount.yaml` manifest creates the restricted Kubernetes identity
 used by the KubeInvaders pod.
 
@@ -981,7 +963,7 @@ kubectl get serviceaccount kinv-sa \
   -n kubeinvaders
 ```
 
-### 8.5 Create the KubeInvaders Game Mode RBAC: rbac.yaml
+### 7.5 Create the KubeInvaders Game Mode RBAC: rbac.yaml
 The `rbac.yaml` manifest grants kinv-sa limited access to the
 astronomy-shop namespace.
 
@@ -1051,7 +1033,7 @@ kubectl auth can-i delete pods \
 Expected output:
 no
 
-### 8.6 Create the KubeInvaders Programming Mode RBAC: programming-mode-rbac.yaml
+### 7.6 Create the KubeInvaders Programming Mode RBAC: programming-mode-rbac.yaml
 The `programming-mode-rbac.yaml` manifest grants kinv-sa permission to
 create and manage Kubernetes Jobs and their pods in the KubeInvaders
 namespace.
@@ -1094,7 +1076,7 @@ kubectl auth can-i create jobs.batch \
 Expected output:
 yes
 
-### 8.7 Create the KubeInvaders Deployment: deployment.yaml
+### 7.7 Create the KubeInvaders Deployment: deployment.yaml
 The `deployment.yaml` manifest runs the KubeInvaders application.
 
 The Deployment:
@@ -1176,7 +1158,7 @@ prometheus.io/scrape:true
 prometheus.io/path:/metrics
 prometheus.io/port:8080
 
-### 8.8 Create the KubeInvaders Service: service.yaml
+### 7.8 Create the KubeInvaders Service: service.yaml
 The service.yaml manifest provides a stable ClusterIP endpoint for the
 KubeInvaders application.
 
@@ -1202,7 +1184,7 @@ kubectl get service kubeinvaders \
   -n kubeinvaders
 ```
 
-### 8.9 Access KubeInvaders
+### 7.9 Access KubeInvaders
 
 Port-forward local port 8081 to the KubeInvaders Service port 8080.
 
@@ -1232,7 +1214,7 @@ Verify the Prometheus metrics endpoint:
 http://localhost:8081/metrics
 ```
 
-### 8.10 Configure the Kubernetes Connection
+### 7.10 Configure the Kubernetes Connection
 
 In the KubeInvaders interface, configure the Kubernetes connection using the
 following values.
@@ -1269,7 +1251,7 @@ Copy the complete certificate, including:
 ...
 -----END CERTIFICATE-----
 
-### 8.11 Verify Game Mode
+### 7.11 Verify Game Mode
 
 Watch the Astronomy Shop pods:
 
@@ -1287,7 +1269,7 @@ The Deployment creates a replacement pod.
 The replacement pod reaches Running.
 The KubeInvaders deletion and recovery metrics update.
 
-### 8.12 Verify Programming Mode
+### 7.12 Verify Programming Mode
 
 Watch Programming Mode Jobs:
 
@@ -1321,7 +1303,7 @@ Verify the KubeInvaders metrics:
 curl http://localhost:8081/metrics
 ```
 
-### 8.13 Repeat the Deployment
+### 7.13 Repeat the Deployment
 
 Once all six manifests exist, apply them in dependency order:
 
@@ -1357,12 +1339,30 @@ kubectl apply \
 
 ---
 
-## Phase 9
-Dashboards
+## Phase 9 - Destroy the Lab
+
+When you have finished using the lab, destroy all AWS resources to avoid unnecessary charges.
+
+### Destroy the Infrastructure
+
+```bash
+terraform destroy
+```
+
+After the destroy completes, verify that the Amazon EKS cluster and associated AWS resources have been removed.
+
+> **Note**
+>
+> Destroying the EKS cluster also removes all Kubernetes resources, including the Splunk OpenTelemetry Collector deployment and Kubernetes Secrets. The next deployment will require recreating the Splunk Kubernetes Secret before installing the Collector.
 
 ---
 
 ## Phase 10
+Dashboards
+
+---
+
+## Phase 11
 Detectors
 
 ---
