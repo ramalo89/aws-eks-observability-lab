@@ -1314,11 +1314,10 @@ kubectl get jobs \
 
 Verify the KubeInvaders metrics:
 
-``bash
+```bash
 curl http://localhost:8081/metrics
 ```
 
-```markdown
 ### 8.13 Repeat the Deployment
 
 Once all six manifests exist, apply them in dependency order:
