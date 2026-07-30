@@ -1326,19 +1326,24 @@ Once all six manifests exist, apply them in dependency order:
 ```bash
 kubectl apply \
   -f applications/kubeinvaders/manifests/namespace.yaml
-
+```
+```bash
 kubectl apply \
   -f applications/kubeinvaders/manifests/serviceaccount.yaml
-
+```
+```bash
 kubectl apply \
   -f applications/kubeinvaders/manifests/rbac.yaml
-
+```
+```bash
 kubectl apply \
   -f applications/kubeinvaders/manifests/programming-mode-rbac.yaml
-
+```
+```bash
 kubectl apply \
   -f applications/kubeinvaders/manifests/deployment.yaml
-
+```
+```bash
 kubectl apply \
   -f applications/kubeinvaders/manifests/service.yaml
 ```
