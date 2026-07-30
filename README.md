@@ -671,8 +671,7 @@ At this point, the observability platform is fully operational and ready for app
 
 ---
 
-## Phase 5
-Deploy Astronomy Shop
+## Phase 5 - Deploy Astronomy Shop App
 
 Add the OpenTelemetry Helm repository.
 
@@ -860,13 +859,489 @@ After the destroy completes, verify that the Amazon EKS cluster and associated A
 
 ---
 
-## Phase 7
+## Phase 7 - AI Application
 Deploy AI Application
 
 ---
 
-## Phase 8
-Deploy KubeInvaders
+## Phase 8 - Deploy KubeInvaders
+
+### Add a manifest relationship summary
+
+This would be useful near the beginning of Phase 8:
+
+```markdown
+### KubeInvaders Manifest Structure
+
+| Manifest | Purpose |
+|------------------------------|---|
+| `namespace.yaml`             | Creates the namespace where KubeInvaders and Programming Mode Jobs run. |
+| `serviceaccount.yaml`        | Creates the restricted identity used by the KubeInvaders pod. |
+| `rbac.yaml`                  | Grants Game Mode access to inspect and delete pods only in `astronomy-shop`. |
+| `programming-mode-rbac.yaml` | Grants Programming Mode access to create and manage Jobs in `kubeinvaders`. |
+| `deployment.yaml`            | Runs KubeInvaders using `kinv-sa` and enables Prometheus metric discovery. |
+| `service.yaml`               | Provides stable access to the application and `/metrics` endpoint on port `8080`. |
+
+The manifests work together as follows:
+
+```text
+Deployment
+    │
+    └── uses kinv-sa
+            ├── Game Mode RBAC
+            │     └── astronomy-shop pod access
+            └── Programming Mode RBAC
+                  └── KubeInvaders Job access
+
+Service
+    │
+    └── selects the Deployment pod
+            ├── Web interface
+            └── /metrics endpoint
+
+KubeInvaders provides a controlled chaos-engineering interface for testing
+Kubernetes application resilience.
+
+In this lab:
+
+- KubeInvaders runs in the `kubeinvaders` namespace.
+- Game Mode targets pods in the `astronomy-shop` namespace.
+- Programming Mode creates temporary Kubernetes Jobs in the
+  `kubeinvaders` namespace.
+- KubeInvaders metrics are scraped by the Splunk OpenTelemetry Collector
+  and sent to Splunk Observability Cloud.
+
+> **Warning**
+>
+> KubeInvaders can delete pods and create resource-intensive workloads.
+> Deploy it only in a lab or other approved non-production environment.
+
+### 8.1 Verify the Kubernetes Context
+
+Before deploying, verify that `kubectl` is connected to the intended EKS
+cluster.
+
+```bash
+kubectl config current-context
+```
+
+Verify cluster connectivity:
+```bash
+kubectl get nodes
+```
+
+Verify that the target application namespace exists:
+```bash
+kubectl get namespace astronomy-shop
+```
+
+### 8.2 Create the Manifest Directory
+```bash
+mkdir -p applications/kubeinvaders/manifests
+```
+
+### 8.3 Create the KubeInvaders Namespace: namespace.yaml
+The `namespace.yaml` manifest creates an isolated namespace for the
+KubeInvaders application and its Programming Mode Jobs.
+
+Validate the namespace.yaml manifest:
+```bash
+kubectl apply \
+  --dry-run=server \
+  -f applications/kubeinvaders/manifests/namespace.yaml
+```
+
+Apply namespace.yaml manifest:
+```bash
+kubectl apply \
+  -f applications/kubeinvaders/manifests/namespace.yaml
+```
+
+Verify namespace.yaml manifest created:
+```bash
+kubectl get namespace kubeinvaders
+```
+
+### 8.4 Create the KubeInvaders ServiceAccount: serviceaccount.yaml
+The `serviceaccount.yaml` manifest creates the restricted Kubernetes identity
+used by the KubeInvaders pod.
+
+Validate the serviceaccount.yaml manifest:
+```bash
+kubectl apply \
+  --dry-run=server \
+  -f applications/kubeinvaders/manifests/serviceaccount.yaml
+```
+
+Apply serviceaccount.yaml manifest:
+```bash
+kubectl apply \
+  -f applications/kubeinvaders/manifests/serviceaccount.yaml
+```
+
+Verify serviceaccount.yaml manifest created:
+```bash
+kubectl get serviceaccount kinv-sa \
+  -n kubeinvaders
+```
+
+### 8.5 Create the KubeInvaders Game Mode RBAC: rbac.yaml
+The `rbac.yaml` manifest grants kinv-sa limited access to the
+astronomy-shop namespace.
+
+These permissions allow KubeInvaders to list, inspect, watch, and delete
+Astronomy Shop pods during Game Mode. The permissions are scoped only to the
+target namespace.
+
+Validate the rbac.yaml manifest:
+```bash
+kubectl apply \
+  --dry-run=server \
+  -f applications/kubeinvaders/manifests/rbac.yaml
+```
+
+Apply rbac.yaml manifest:
+```bash
+kubectl apply \
+  -f applications/kubeinvaders/manifests/rbac.yaml
+```
+
+Verify rbac.yaml manifest created:
+```bash
+kubectl get role kubeinvaders-target-role \
+  -n astronomy-shop
+```
+
+```bash
+kubectl get rolebinding kubeinvaders-target-binding \
+  -n astronomy-shop
+```
+
+#### Verify Game Mode Permissions
+Verify
+Confirm that KubeInvaders can list Astronomy Shop pods:
+```bash
+kubectl auth can-i list pods \
+  --namespace astronomy-shop \
+  --as=system:serviceaccount:kubeinvaders:kinv-sa
+```
+Expected output:
+yes
+
+Confirm that KubeInvaders can delete Astronomy Shop pods:
+```bash
+kubectl auth can-i delete pods \
+  --namespace astronomy-shop \
+  --as=system:serviceaccount:kubeinvaders:kinv-sa
+```
+Expected output:
+yes
+
+Confirm that the ServiceAccount cannot delete Splunk pods:
+```bash
+kubectl auth can-i delete pods \
+  --namespace splunk \
+  --as=system:serviceaccount:kubeinvaders:kinv-sa
+```
+Expected output:
+no
+
+Confirm that the ServiceAccount cannot delete Kubernetes system pods:
+```bash
+kubectl auth can-i delete pods \
+  --namespace kube-system \
+  --as=system:serviceaccount:kubeinvaders:kinv-sa
+```
+Expected output:
+no
+
+### 8.6 Create the KubeInvaders Programming Mode RBAC: programming-mode-rbac.yaml
+The `programming-mode-rbac.yaml` manifest grants kinv-sa permission to
+create and manage Kubernetes Jobs and their pods in the KubeInvaders
+namespace.
+
+Programming Mode creates its chaos Jobs in the KubeInvaders namespace rather
+than in the selected application namespace.
+
+Validate the programming-mode-rbac.yaml manifest:
+```bash
+kubectl apply \
+  --dry-run=server \
+  -f applications/kubeinvaders/manifests/programming-mode-rbac.yaml
+```
+
+Apply programming-mode-rbac.yaml manifest:
+```bash
+kubectl apply \
+  -f applications/kubeinvaders/manifests/programming-mode-rbac.yaml
+```
+
+Verify programming-mode-rbac.yaml manifest created:
+```bash
+kubectl get role kubeinvaders-programming-mode \
+  -n kubeinvaders
+```
+
+```bash
+kubectl get rolebinding kubeinvaders-programming-mode \
+  -n kubeinvaders
+```
+
+#### Verify Programming Mode Permissions
+Confirm that KubeInvaders can create Kubernetes Jobs in the
+`kubeinvaders` namespace:
+```bash
+kubectl auth can-i create jobs.batch \
+  --as=system:serviceaccount:kubeinvaders:kinv-sa \
+  -n kubeinvaders
+```
+Expected output:
+yes
+
+### 8.7 Create the KubeInvaders Deployment: deployment.yaml
+The `deployment.yaml` manifest runs the KubeInvaders application.
+
+The Deployment:
+- Uses the `kinv-sa` ServiceAccount.
+- Runs in the `kubeinvaders` namespace.
+- Exposes the application on container port `8080`.
+- Includes Prometheus annotations so the Splunk OpenTelemetry Collector can
+  discover and scrape the `/metrics` endpoint.
+
+Validate the deployment.yaml manifest:
+```bash
+kubectl apply \
+  --dry-run=server \
+  -f applications/kubeinvaders/manifests/deployment.yaml
+```
+
+Apply deployment.yaml manifest:
+```bash
+kubectl apply \
+  -f applications/kubeinvaders/manifests/deployment.yaml
+```
+
+Verify deployment.yaml manifest:
+```bash
+kubectl get deployment kubeinvaders \
+  -n kubeinvaders
+```
+
+Wait for the Deployment to become available:
+
+```bash
+kubectl rollout status deployment/kubeinvaders \
+  -n kubeinvaders
+```
+
+```bash
+  kubectl logs \
+  -n kubeinvaders \
+  deployment/kubeinvaders
+```
+
+Follow the logs during testing:
+```bash
+kubectl logs \
+  -n kubeinvaders \
+  deployment/kubeinvaders \
+  --follow \
+  --timestamps
+```
+These logs were essential when we diagnosed the Programming Mode `403 Forbidden` error.
+
+Verify the Kubeinvaders Pods:
+```bash
+kubectl get pods \
+  -n kubeinvaders \
+  -l app.kubernetes.io/name=kubeinvaders \
+  -o wide
+```
+
+Confirm that the pod uses kinv-sa:
+```bash
+kubectl get pods \
+  -n kubeinvaders \
+  -l app.kubernetes.io/name=kubeinvaders \
+  -o jsonpath='{.items[0].spec.serviceAccountName}{"\n"}'
+```
+Expected output:
+kinv-sa
+
+Verify the Prometheus annotations:
+```bash
+kubectl get pods \
+  -n kubeinvaders \
+  -l app.kubernetes.io/name=kubeinvaders \
+  -o jsonpath='{.items[0].metadata.annotations}{"\n"}'
+```
+The output should contain:
+prometheus.io/scrape:true
+prometheus.io/path:/metrics
+prometheus.io/port:8080
+
+### 8.8 Create the KubeInvaders Service: service.yaml
+The service.yaml manifest provides a stable ClusterIP endpoint for the
+KubeInvaders application.
+
+The Service listens on port 8080 and forwards traffic to port 8080 on the
+KubeInvaders pod.
+
+Validate the service.yaml manifest:
+```bash
+kubectl apply \
+  --dry-run=server \
+  -f applications/kubeinvaders/manifests/service.yaml
+```
+
+Apply service.yaml manifest:
+```bash
+kubectl apply \
+  -f applications/kubeinvaders/manifests/service.yaml
+```
+
+Verify service.yaml manifest:
+```bash
+kubectl get service kubeinvaders \
+  -n kubeinvaders
+```
+
+### 8.9 Access KubeInvaders
+
+Port-forward local port 8081 to the KubeInvaders Service port 8080.
+
+Port 8081 is used locally because port 8080 is already used by the
+Astronomy Shop application.
+```bash
+kubectl port-forward \
+  service/kubeinvaders \
+  8081:8080 \
+  -n kubeinvaders
+```
+
+Traffic Path:
+Laptop port 8081
+        ↓
+KubeInvaders Service port 8080
+        ↓
+KubeInvaders pod port 8080
+
+Open the following URL:
+```test
+http://localhost:8081
+```
+Verify the Prometheus metrics endpoint:
+http://localhost:8081/metrics
+
+### 8.10 Configure the Kubernetes Connection
+
+In the KubeInvaders interface, configure the Kubernetes connection using the
+following values.
+
+Kubernetes API endpoint:
+https://kubernetes.default.svc
+
+Target namespace:
+astronomy-shop
+
+Create a temporary ServiceAccount token:
+```bash
+kubectl create token kinv-sa \
+  -n kubeinvaders \
+  --duration=8h
+```
+Copy the token into the KubeInvaders Kubernetes connection configuration.
+
+```markdown
+> **Security**
+>
+> The token is temporary. Never save it in Git, commit it to the repository,
+> or include its value in screenshots or documentation.
+
+Retrieve the Kubernetes cluster CA certificate:
+```bash
+kubectl exec \
+  -n kubeinvaders \
+  deployment/kubeinvaders \
+  -- cat /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+```
+Copy the complete certificate, including:
+
+-----BEGIN CERTIFICATE-----
+...
+-----END CERTIFICATE-----
+
+### 8.11 Verify Game Mode
+
+Watch the Astronomy Shop pods:
+```bash
+kubectl get pods \
+  -n astronomy-shop \
+  --watch
+```
+Use Game Mode to delete a pod.
+
+Verify that:
+KubeInvaders deletes the selected pod.
+The Deployment creates a replacement pod.
+The replacement pod reaches Running.
+The KubeInvaders deletion and recovery metrics update.
+
+### 8.12 Verify Programming Mode
+
+Watch Programming Mode Jobs:
+```bash
+kubectl get jobs \
+  -n kubeinvaders \
+  --watch
+```
+
+In another terminal, watch the chaos pods:
+```bash
+kubectl get pods \
+  -n kubeinvaders \
+  -l chaos-controller=kubeinvaders \
+  --watch
+```
+
+Run a Programming Mode experiment.
+
+Verify that the Jobs complete successfully:
+```bash
+kubectl get jobs \
+  -n kubeinvaders
+```
+
+Verify the KubeInvaders metrics:
+
+``bash
+curl http://localhost:8081/metrics
+
+
+```markdown
+### 8.13 Repeat the Deployment
+
+Once all six manifests exist, apply them in dependency order:
+
+```bash
+kubectl apply \
+  -f applications/kubeinvaders/manifests/namespace.yaml
+
+kubectl apply \
+  -f applications/kubeinvaders/manifests/serviceaccount.yaml
+
+kubectl apply \
+  -f applications/kubeinvaders/manifests/rbac.yaml
+
+kubectl apply \
+  -f applications/kubeinvaders/manifests/programming-mode-rbac.yaml
+
+kubectl apply \
+  -f applications/kubeinvaders/manifests/deployment.yaml
+
+kubectl apply \
+  -f applications/kubeinvaders/manifests/service.yaml
+```
 
 ---
 
@@ -884,8 +1359,6 @@ Detectors
 
 The following capabilities are planned for future phases of this lab:
 
-- Deploy the OpenTelemetry Astronomy Shop demo application.
-- Deploy KubeInvaders to generate controlled Kubernetes chaos events.
 - Deploy the AI application with OpenTelemetry instrumentation.
 - Build custom dashboards in Splunk Observability Cloud.
 - Create detectors and alerts for infrastructure and application health.
