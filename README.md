@@ -866,10 +866,6 @@ Deploy AI Application
 
 ## Phase 8 - Deploy KubeInvaders
 
-### Add a manifest relationship summary
-
-This would be useful near the beginning of Phase 8:
-
 ### KubeInvaders Manifest Structure
 
 | Manifest | Purpose |
