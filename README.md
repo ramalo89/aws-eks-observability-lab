@@ -1316,7 +1316,7 @@ Verify the KubeInvaders metrics:
 
 ``bash
 curl http://localhost:8081/metrics
-
+```
 
 ```markdown
 ### 8.13 Repeat the Deployment
