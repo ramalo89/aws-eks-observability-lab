@@ -1212,6 +1212,7 @@ Port-forward local port 8081 to the KubeInvaders Service port 8080.
 
 Port 8081 is used locally because port 8080 is already used by the
 Astronomy Shop application.
+
 ```bash
 kubectl port-forward \
   service/kubeinvaders \
@@ -1231,7 +1232,9 @@ Open the following URL:
 http://localhost:8081
 ```
 Verify the Prometheus metrics endpoint:
+```test
 http://localhost:8081/metrics
+```
 
 ### 8.10 Configure the Kubernetes Connection
 
@@ -1252,7 +1255,6 @@ kubectl create token kinv-sa \
 ```
 Copy the token into the KubeInvaders Kubernetes connection configuration.
 
-```markdown
 > **Security**
 >
 > The token is temporary. Never save it in Git, commit it to the repository,
@@ -1274,11 +1276,13 @@ Copy the complete certificate, including:
 ### 8.11 Verify Game Mode
 
 Watch the Astronomy Shop pods:
+
 ```bash
 kubectl get pods \
   -n astronomy-shop \
   --watch
 ```
+
 Use Game Mode to delete a pod.
 
 Verify that:
@@ -1290,6 +1294,7 @@ The KubeInvaders deletion and recovery metrics update.
 ### 8.12 Verify Programming Mode
 
 Watch Programming Mode Jobs:
+
 ```bash
 kubectl get jobs \
   -n kubeinvaders \
@@ -1297,6 +1302,7 @@ kubectl get jobs \
 ```
 
 In another terminal, watch the chaos pods:
+
 ```bash
 kubectl get pods \
   -n kubeinvaders \
@@ -1307,6 +1313,7 @@ kubectl get pods \
 Run a Programming Mode experiment.
 
 Verify that the Jobs complete successfully:
+
 ```bash
 kubectl get jobs \
   -n kubeinvaders
@@ -1326,22 +1333,27 @@ Once all six manifests exist, apply them in dependency order:
 kubectl apply \
   -f applications/kubeinvaders/manifests/namespace.yaml
 ```
+
 ```bash
 kubectl apply \
   -f applications/kubeinvaders/manifests/serviceaccount.yaml
 ```
+
 ```bash
 kubectl apply \
   -f applications/kubeinvaders/manifests/rbac.yaml
 ```
+
 ```bash
 kubectl apply \
   -f applications/kubeinvaders/manifests/programming-mode-rbac.yaml
 ```
+
 ```bash
 kubectl apply \
   -f applications/kubeinvaders/manifests/deployment.yaml
 ```
+
 ```bash
 kubectl apply \
   -f applications/kubeinvaders/manifests/service.yaml
