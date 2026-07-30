@@ -915,6 +915,7 @@ In this lab:
 >
 > KubeInvaders can delete pods and create resource-intensive workloads.
 > Deploy it only in a lab or other approved non-production environment.
+```
 
 ### 8.1 Verify the Kubernetes Context
 
