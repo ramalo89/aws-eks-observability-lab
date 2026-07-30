@@ -1,0 +1,83 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kubeinvaders-target-role
+  namespace: astronomy-shop
+rules:
+  # Allow KubeInvaders to discover resources in the target namespace.
+  - apiGroups:
+      - "*"
+    resources:
+      - "*"
+    verbs:
+      - get
+      - list
+      - watch
+
+  # Allow KubeInvaders to delete pods during chaos experiments.
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - delete
+
+  # Allow KubeInvaders to create and manage chaos Jobs.
+  - apiGroups:
+      - batch
+    resources:
+      - jobs
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kubeinvaders-target-binding
+  namespace: astronomy-shop
+subjects:
+  - kind: ServiceAccount
+    name: kinv-sa
+    namespace: kubeinvaders
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: kubeinvaders-target-role
+
+---
+# KubeInvaders performs cluster-scoped pod discovery for its interface
+# and internal metrics. These permissions are read-only.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubeinvaders-discovery-role
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubeinvaders-discovery-binding
+subjects:
+  - kind: ServiceAccount
+    name: kinv-sa
+    namespace: kubeinvaders
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubeinvaders-discovery-role

@@ -103,7 +103,7 @@ docs/
 # Apps
 #########################################
 
-applications/kubeinvaders/
+applications/langgraph-fsi-agent/
 applications/astronomy-shop/values/astronomy-shop-default.yaml
 applications/astronomy-shop/values/astronomy-shop-custom.yaml
 

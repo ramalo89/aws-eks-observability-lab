@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubeinvaders
+  namespace: kubeinvaders
+  labels:
+    app.kubernetes.io/name: kubeinvaders
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kubeinvaders
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kubeinvaders
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "8080"
+
+    spec:
+      serviceAccountName: kinv-sa
+
+      containers:
+        - name: kubeinvaders
+          image: docker.io/luckysideburn/kubeinvaders:latest
+          imagePullPolicy: Always
+
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+
+          env:
+            - name: NAMESPACE
+              value: astronomy-shop
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
