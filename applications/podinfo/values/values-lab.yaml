@@ -1,0 +1,32 @@
+# Podinfo configuration for the AWS EKS Observability Lab
+
+# Run multiple replicas so KubeInvaders can delete pods
+# while Kubernetes demonstrates self-healing.
+replicaCount: 3
+
+logLevel: info
+
+ui:
+  message: "AWS EKS Observability Lab - Podinfo"
+
+# Keep fault injection disabled initially.
+# KubeInvaders will provide the failure/chaos scenario.
+faults:
+  delay: false
+  error: false
+  unhealthy: false
+  unready: false
+
+service:
+  type: ClusterIP
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 32Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi
+
+redis:
+  enabled: false

@@ -841,8 +841,116 @@ http://localhost:8080/feature/
 
 ---
 
-## Phase 6 - AI Application
-Deploy AI Application
+## Phase 6 - Deploy Podinfo Application
+
+### 6.1 Add the Podinfo Helm Repository
+
+From the root of the `aws-eks-observability-lab` repository, add the Podinfo Helm repository.
+
+```bash
+helm repo add podinfo https://stefanprodan.github.io/podinfo
+helm repo update
+```
+
+Verify the repository was added successfully.
+
+```bash
+helm repo list
+```
+
+Verify Helm can locate the Podinfo chart.
+
+```bash
+helm search repo podinfo
+```
+
+---
+
+### 6.2 Create the Namespace
+
+Create a dedicated namespace for Podinfo.
+
+```bash
+kubectl create namespace podinfo
+```
+
+Verify the namespace exists.
+
+```bash
+kubectl get namespace podinfo
+```
+
+---
+
+### 6.3 Review the Default Helm Values (Optional)
+
+Before deploying the application, inspect the chart's default configuration.
+
+```bash
+helm show values podinfo/podinfo > applications/podinfo/values/podinfo-values.yaml
+```
+
+This file contains all configurable Helm values and serves as a reference when creating custom override files.
+
+---
+
+### 6.4 Deploy Podinfo
+
+Deploy Podinfo using the lab-specific Helm values.
+
+```bash
+helm upgrade --install podinfo podinfo/podinfo \
+  --namespace podinfo \
+  --values applications/podinfo/values/values-lab.yaml \
+  --wait
+```
+
+---
+
+### 6.5 Verify the Deployment
+
+Verify the Helm release.
+
+```bash
+helm list -n podinfo
+```
+
+Verify the Deployment.
+
+```bash
+kubectl get deployment -n podinfo
+```
+
+Verify the Pods.
+
+```bash
+kubectl get pods -n podinfo -o wide
+```
+
+Verify the Service.
+
+```bash
+kubectl get service -n podinfo
+```
+
+---
+
+### 6.6 Access the Podinfo UI
+
+Port-forward the Podinfo Deployment.
+
+```bash
+kubectl -n podinfo port-forward deploy/podinfo 9898:9898
+```
+
+Open your browser and navigate to:
+
+```
+http://localhost:9898
+```
+
+You should see the Podinfo web interface displaying application, Kubernetes, and runtime information.
+
 
 ---
 

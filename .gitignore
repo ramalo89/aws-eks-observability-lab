@@ -107,6 +107,8 @@ applications/langgraph-fsi-agent/
 applications/astronomy-shop/values/astronomy-shop-default.yaml
 applications/astronomy-shop/values/astronomy-shop-custom.yaml
 
+applications/podinfo/values/podinfo-values.yaml
+applications/podinfo/values/podinfo-rendered.yaml
 #########################################
 # Splunk Values File
 #########################################
