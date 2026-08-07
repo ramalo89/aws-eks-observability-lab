@@ -34,10 +34,6 @@ spec:
               containerPort: 8080
               protocol: TCP
 
-          env:
-            - name: NAMESPACE
-              value: astronomy-shop
-
           resources:
             requests:
               cpu: 100m
