@@ -965,6 +965,7 @@ curl -s http://localhost:9898/metrics \
   | grep '^# HELP' \
   | grep -v 'go_' \
   | grep -v 'process_'
+```
 
 ---
 
