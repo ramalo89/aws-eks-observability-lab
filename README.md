@@ -849,6 +849,9 @@ From the root of the `aws-eks-observability-lab` repository, add the Podinfo Hel
 
 ```bash
 helm repo add podinfo https://stefanprodan.github.io/podinfo
+```
+
+```bash
 helm repo update
 ```
 
@@ -940,7 +943,7 @@ kubectl get service -n podinfo
 Port-forward the Podinfo Deployment.
 
 ```bash
-kubectl -n podinfo port-forward deploy/podinfo 9898:9898
+kubectl -n podinfo port-forward svc/podinfo 9898:9898
 ```
 
 Open your browser and navigate to:
@@ -951,6 +954,17 @@ http://localhost:9898
 
 You should see the Podinfo web interface displaying application, Kubernetes, and runtime information.
 
+### 6.7 Verify Podinfo Prometheus Metrics
+
+Podinfo exposes Prometheus metrics on port `9898`.
+
+Verify Podinfo exposes Prometheus application metrics:
+
+```bash
+curl -s http://localhost:9898/metrics \
+  | grep '^# HELP' \
+  | grep -v 'go_' \
+  | grep -v 'process_'
 
 ---
 
