@@ -2,7 +2,7 @@
 
 # Run multiple replicas so KubeInvaders can delete pods
 # while Kubernetes demonstrates self-healing.
-replicaCount: 3
+replicaCount: 10
 
 logLevel: info
 
